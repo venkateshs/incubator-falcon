@@ -161,6 +161,7 @@ In Kerberos method, the browser must support HTTP Kerberos SPNEGO.
    * Entities already scheduled with an earlier version of Falcon are not compatible with this version as new
    workflow parameters are being passed back into Falcon such as the user are required
    * Use of hftp as the scheme for read only interface in cluster entity [[https://issues.apache.org/jira/browse/HADOOP-10215][will not work in Oozie]]
+   The alternative is to use webhdfs scheme instead and its been tested with DistCp.
 
 
 ---++ Examples
