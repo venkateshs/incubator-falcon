@@ -50,6 +50,12 @@ public final class SecurityUtil {
      */
     public static final String NN_PRINCIPAL = "dfs.namenode.kerberos.principal";
 
+    /**
+     * Constant for the configuration property that indicates the Name node principal.
+     * This is used to talk to Hive Meta Store during parsing and validations only.
+     */
+    public static final String HIVE_METASTORE_PRINCIPAL = "hive.metastore.kerberos.principal";
+
 
     private static ConcurrentMap<String, UserGroupInformation> userUgiMap =
             new ConcurrentHashMap<String, UserGroupInformation>();

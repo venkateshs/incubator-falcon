@@ -85,16 +85,6 @@ public class OozieProcessMapper extends AbstractOozieEntityMapper<Process> {
         super(entity);
     }
 
-    private void mkdir(FileSystem fs, Path path) throws FalconException {
-        try {
-            if (!fs.exists(path) && !fs.mkdirs(path)) {
-                throw new FalconException("mkdir failed for " + path);
-            }
-        } catch (IOException e) {
-            throw new FalconException("mkdir failed for " + path, e);
-        }
-    }
-
     @Override
     protected List<COORDINATORAPP> getCoordinators(Cluster cluster, Path bundlePath) throws FalconException {
         try {
@@ -141,7 +131,7 @@ public class OozieProcessMapper extends AbstractOozieEntityMapper<Process> {
             Process process = getEntity();
             Path wfPath = new Path(process.getWorkflow().getPath());
             if (fs.isFile(wfPath)) {
-                return new Path(bundlePath, EntityUtil.PROCESS_USER_DIR + "/" + wfPath.getName().toString());
+                return new Path(bundlePath, EntityUtil.PROCESS_USER_DIR + "/" + wfPath.getName());
             } else {
                 return new Path(bundlePath, EntityUtil.PROCESS_USER_DIR);
             }
@@ -160,7 +150,7 @@ public class OozieProcessMapper extends AbstractOozieEntityMapper<Process> {
 
             FileSystem fs = HadoopClientFactory.get().createProxiedFileSystem(ClusterHelper.getConfiguration(cluster));
             if (fs.isFile(libPath)) {
-                return new Path(bundlePath, EntityUtil.PROCESS_USERLIB_DIR + "/" + libPath.getName().toString());
+                return new Path(bundlePath, EntityUtil.PROCESS_USERLIB_DIR + "/" + libPath.getName());
             } else {
                 return new Path(bundlePath, EntityUtil.PROCESS_USERLIB_DIR);
             }
@@ -518,9 +508,9 @@ public class OozieProcessMapper extends AbstractOozieEntityMapper<Process> {
             if (engineType == EngineType.OOZIE && actionName.equals("user-oozie-workflow")) {
                 action.getSubWorkflow().setAppPath("${nameNode}" + userWfPath);
             } else if (engineType == EngineType.PIG && actionName.equals("user-pig-job")) {
-                decoratePIGAction(cluster, process, processWorkflow, action.getPig(), parentWfPath);
+                decoratePIGAction(cluster, process, action.getPig(), parentWfPath);
             } else if (engineType == EngineType.HIVE && actionName.equals("user-hive-job")) {
-                decorateHiveAction(cluster, process, processWorkflow, action, parentWfPath);
+                decorateHiveAction(cluster, process, action, parentWfPath);
             } else if (FALCON_ACTIONS.contains(actionName)) {
                 decorateWithOozieRetries(action);
             }
@@ -531,7 +521,7 @@ public class OozieProcessMapper extends AbstractOozieEntityMapper<Process> {
     }
 
     private void decoratePIGAction(Cluster cluster, Process process,
-                                   Workflow processWorkflow, PIG pigAction, Path parentWfPath) throws FalconException {
+                                   PIG pigAction, Path parentWfPath) throws FalconException {
         Path userWfPath = getUserWorkflowPath(cluster, parentWfPath.getParent());
         pigAction.setScript("${nameNode}" + userWfPath.toString());
 
@@ -550,11 +540,11 @@ public class OozieProcessMapper extends AbstractOozieEntityMapper<Process> {
             pigAction.getFile().add("${wf:appPath()}/conf/hive-site.xml");
         }
 
-        addArchiveForCustomJars(cluster, processWorkflow, pigAction.getArchive(),
+        addArchiveForCustomJars(cluster, pigAction.getArchive(),
                 getUserLibPath(cluster, parentWfPath.getParent()));
     }
 
-    private void decorateHiveAction(Cluster cluster, Process process, Workflow processWorkflow, ACTION wfAction,
+    private void decorateHiveAction(Cluster cluster, Process process, ACTION wfAction,
                                     Path parentWfPath) throws FalconException {
 
         JAXBElement<org.apache.falcon.oozie.hive.ACTION> actionJaxbElement = unMarshalHiveAction(wfAction);
@@ -573,7 +563,7 @@ public class OozieProcessMapper extends AbstractOozieEntityMapper<Process> {
 
         setupHiveConfiguration(cluster, parentWfPath, "falcon-");
 
-        addArchiveForCustomJars(cluster, processWorkflow, hiveAction.getArchive(),
+        addArchiveForCustomJars(cluster, hiveAction.getArchive(),
                 getUserLibPath(cluster, parentWfPath.getParent()));
 
         marshalHiveAction(wfAction, actionJaxbElement);
@@ -754,14 +744,14 @@ public class OozieProcessMapper extends AbstractOozieEntityMapper<Process> {
         try {
             FileSystem fs = HadoopClientFactory.get().createFileSystem(ClusterHelper.getConfiguration(cluster));
             Path confPath = new Path(wfPath, "conf");
-            createHiveConf(fs, confPath, catalogUrl, prefix);
+            createHiveConf(fs, confPath, catalogUrl, cluster, prefix);
         } catch (IOException e) {
             throw new FalconException(e);
         }
     }
 
-    private void addArchiveForCustomJars(Cluster cluster, Workflow processWorkflow,
-                                         List<String> archiveList, Path libPath) throws FalconException {
+    private void addArchiveForCustomJars(Cluster cluster, List<String> archiveList,
+                                         Path libPath) throws FalconException {
         if (libPath == null) {
             return;
         }
@@ -816,5 +806,4 @@ public class OozieProcessMapper extends AbstractOozieEntityMapper<Process> {
             throw new RuntimeException("Unable to marshall hive action.", e);
         }
     }
-
 }
