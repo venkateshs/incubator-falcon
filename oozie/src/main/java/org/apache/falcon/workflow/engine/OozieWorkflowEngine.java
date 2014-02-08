@@ -384,6 +384,7 @@ public class OozieWorkflowEngine extends AbstractWorkflowEngine {
     @Override
     public InstancesResult getRunningInstances(Entity entity)
         throws FalconException {
+
         try {
             WorkflowBuilder<Entity> builder = WorkflowBuilder.getBuilder(
                     ENGINE, entity);
