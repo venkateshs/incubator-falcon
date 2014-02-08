@@ -46,7 +46,7 @@ public class LateRerunConsumer<T extends LateRerunHandler<DelayedQueue<LaterunEv
     }
 
     @Override
-    protected void handleRerun(String cluster, String jobStatus,
+    protected void handleRerun(String clusterName, String jobStatus,
                                LaterunEvent message) {
         try {
             if (jobStatus.equals("RUNNING") || jobStatus.equals("PREP")
@@ -66,10 +66,9 @@ public class LateRerunConsumer<T extends LateRerunHandler<DelayedQueue<LaterunEv
                         + message.getWfId()
                         + " at "
                         + SchemaHelper.formatDateUTC(new Date()));
-                handler.handleRerun(cluster, message.getEntityType(),
-                        message.getEntityName(), message.getInstance(),
-                        Integer.toString(message.getRunId()),
-                        message.getWfId(), System.currentTimeMillis());
+                handler.handleRerun(clusterName, message.getEntityType(), message.getEntityName(),
+                        message.getInstance(), Integer.toString(message.getRunId()),
+                        message.getWfId(), message.getWorkflowUser(), System.currentTimeMillis());
                 return;
             }
 
@@ -79,18 +78,14 @@ public class LateRerunConsumer<T extends LateRerunHandler<DelayedQueue<LaterunEv
             LOG.info("Scheduled late rerun for wf-id: " + message.getWfId()
                     + " on cluster: " + message.getClusterName());
         } catch (Exception e) {
-            LOG.warn(
-                    "Late Re-run failed for instance "
+            LOG.warn("Late Re-run failed for instance "
                             + message.getEntityName() + ":"
                             + message.getInstance() + " after "
-                            + message.getDelayInMilliSec() + " with message:",
-                    e);
-            GenericAlert.alertLateRerunFailed(message.getEntityType(),
-                    message.getEntityName(), message.getInstance(),
-                    message.getWfId(), Integer.toString(message.getRunId()),
-                    e.getMessage());
+                            + message.getDelayInMilliSec() + " with message:", e);
+            GenericAlert.alertLateRerunFailed(message.getEntityType(), message.getEntityName(),
+                    message.getInstance(), message.getWfId(), message.getWorkflowUser(),
+                    Integer.toString(message.getRunId()), e.getMessage());
         }
-
     }
 
     public String detectLate(LaterunEvent message) throws Exception {
