@@ -701,7 +701,7 @@ public class EntityManagerJerseyIT {
 
         response = context.service
                 .path("api/entities/list/cluster/")
-                .header("Remote-User", TestContext.REMOTE_USER)
+                .header("Cookie", context.getAuthenticationToken())
                 .type(MediaType.TEXT_XML)
                 .accept(MediaType.TEXT_XML)
                 .get(ClientResponse.class);
