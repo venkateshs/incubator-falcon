@@ -27,6 +27,7 @@ import org.apache.falcon.entity.store.ConfigurationStore;
 import org.apache.falcon.entity.v0.*;
 import org.apache.falcon.entity.v0.Frequency.TimeUnit;
 import org.apache.falcon.entity.v0.cluster.Cluster;
+import org.apache.falcon.hadoop.HadoopClientFactory;
 import org.apache.falcon.resource.APIResult;
 import org.apache.falcon.resource.InstancesResult;
 import org.apache.falcon.resource.InstancesResult.Instance;
@@ -130,8 +131,8 @@ public class OozieWorkflowEngine extends AbstractWorkflowEngine {
 
     private void commitStagingPath(String cluster, String path) throws FalconException {
         path = StringUtils.removeStart(path, "${nameNode}");
-        FileSystem fs =
-                ClusterHelper.getFileSystem((Cluster) ConfigurationStore.get().get(EntityType.CLUSTER, cluster));
+        Cluster clusterEntity = (Cluster) ConfigurationStore.get().get(EntityType.CLUSTER, cluster);
+        FileSystem fs = HadoopClientFactory.get().createFileSystem(ClusterHelper.getConfiguration(clusterEntity));
         try {
             fs.create(new Path(path, EntityUtil.SUCCEEDED_FILE_NAME)).close();
         } catch (IOException e) {

@@ -29,6 +29,7 @@ import org.apache.falcon.entity.v0.feed.Feed;
 import org.apache.falcon.entity.v0.process.*;
 import org.apache.falcon.entity.v0.process.Process;
 import org.apache.falcon.expression.ExpressionHelper;
+import org.apache.falcon.hadoop.HadoopClientFactory;
 import org.apache.falcon.rerun.event.LaterunEvent;
 import org.apache.falcon.rerun.policy.AbstractRerunPolicy;
 import org.apache.falcon.rerun.policy.RerunPolicyFactory;
@@ -81,7 +82,8 @@ public class LateRerunHandler<M extends DelayedQueue<LaterunEvent>> extends
 
                 LOG.info("Going to delete path:" + lateLogPath);
                 final String storageEndpoint = properties.getProperty(AbstractWorkflowEngine.NAME_NODE);
-                FileSystem fs = FileSystem.get(getConfiguration(storageEndpoint));
+                Configuration conf = getConfiguration(storageEndpoint);
+                FileSystem fs = HadoopClientFactory.get().createFileSystem(conf);
                 if (fs.exists(lateLogPath)) {
                     boolean deleted = fs.delete(lateLogPath, true);
                     if (deleted) {
