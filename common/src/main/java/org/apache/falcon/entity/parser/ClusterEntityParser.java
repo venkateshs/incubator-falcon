@@ -102,7 +102,7 @@ public class ClusterEntityParser extends EntityParser<Cluster> {
     private void validateFileSystem(Cluster cluster, String storageUrl) throws ValidationException {
         try {
             Configuration conf = new Configuration();
-            conf.set("fs.default.name", storageUrl);
+            conf.set(HadoopClientFactory.FS_DEFAULT_NAME_KEY, storageUrl);
             conf.setInt("ipc.client.connect.max.retries", 10);
 
             if (UserGroupInformation.isSecurityEnabled()) {

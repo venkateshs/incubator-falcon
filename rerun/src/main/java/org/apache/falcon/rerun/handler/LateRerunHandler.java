@@ -36,7 +36,6 @@ import org.apache.falcon.rerun.policy.RerunPolicyFactory;
 import org.apache.falcon.rerun.queue.DelayedQueue;
 import org.apache.falcon.workflow.engine.AbstractWorkflowEngine;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.CommonConfigurationKeys;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
@@ -222,7 +221,7 @@ public class LateRerunHandler<M extends DelayedQueue<LaterunEvent>> extends
 
     public static Configuration getConfiguration(String storageEndpoint) throws FalconException {
         Configuration conf = new Configuration();
-        conf.set(CommonConfigurationKeys.FS_DEFAULT_NAME_KEY, storageEndpoint);
+        conf.set(HadoopClientFactory.FS_DEFAULT_NAME_KEY, storageEndpoint);
         return conf;
     }
 }

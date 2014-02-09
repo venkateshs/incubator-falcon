@@ -60,7 +60,7 @@ public class HadoopClientFactoryTest {
         String user = System.getProperty("user.name");
         try {
             Configuration conf = embeddedCluster.getConf();
-            URI uri = new URI(conf.get("fs.default.name"));
+            URI uri = new URI(conf.get(HadoopClientFactory.FS_DEFAULT_NAME_KEY));
             Assert.assertNotNull(uri);
             HadoopClientFactory.get().createProxiedFileSystem(user, uri, conf);
             Assert.fail("Impersonation should have failed.");
@@ -78,7 +78,7 @@ public class HadoopClientFactoryTest {
                 "testuser", new String[]{"testgroup"});
         UserGroupInformation.createProxyUserForTesting("proxyuser", realUser, new String[]{"proxygroup"});
 
-        URI uri = new URI(conf.get("fs.default.name"));
+        URI uri = new URI(conf.get(HadoopClientFactory.FS_DEFAULT_NAME_KEY));
         Assert.assertNotNull(uri);
         FileSystem fs = HadoopClientFactory.get().createProxiedFileSystem("testuser", uri, conf);
         Assert.assertNotNull(fs);
@@ -93,7 +93,7 @@ public class HadoopClientFactoryTest {
         UserGroupInformation.createProxyUserForTesting("proxyuser", realUser, new String[]{"proxygroup"});
         UserGroupInformation.setConfiguration(conf);
 
-        URI uri = new URI(conf.get("fs.default.name"));
+        URI uri = new URI(conf.get(HadoopClientFactory.FS_DEFAULT_NAME_KEY));
         Assert.assertNotNull(uri);
         FileSystem fs = HadoopClientFactory.get().createProxiedFileSystem("seetharam", uri, conf);
         Assert.assertNotNull(fs);

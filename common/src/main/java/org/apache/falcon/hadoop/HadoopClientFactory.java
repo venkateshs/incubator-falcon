@@ -24,7 +24,6 @@ import org.apache.falcon.security.SecurityUtil;
 import org.apache.falcon.util.Preconditions;
 import org.apache.falcon.util.StartupProperties;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.CommonConfigurationKeys;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.mapred.JobClient;
 import org.apache.hadoop.mapred.JobConf;
@@ -40,6 +39,7 @@ import java.security.PrivilegedExceptionAction;
  */
 public final class HadoopClientFactory {
 
+    public static final String FS_DEFAULT_NAME_KEY = "fs.default.name";
     public static final String MR_JOB_TRACKER_KEY = "mapred.job.tracker";
     public static final String YARN_RM_ADDRESS_KEY = "yarn.resourcemanager.address";
 
@@ -79,7 +79,7 @@ public final class HadoopClientFactory {
         throws FalconException {
         Preconditions.notNull(conf, "conf");
 
-        String nameNode = conf.get(CommonConfigurationKeys.FS_DEFAULT_NAME_KEY);
+        String nameNode = conf.get(FS_DEFAULT_NAME_KEY);
         try {
             return createFileSystem(UserGroupInformation.getLoginUser(), new URI(nameNode), conf);
         } catch (URISyntaxException e) {
@@ -104,7 +104,7 @@ public final class HadoopClientFactory {
         throws FalconException {
         Preconditions.notNull(conf, "conf");
 
-        String nameNode = conf.get(CommonConfigurationKeys.FS_DEFAULT_NAME_KEY);
+        String nameNode = conf.get(FS_DEFAULT_NAME_KEY);
         try {
             return createProxiedFileSystem(CurrentUser.getUser(), new URI(nameNode), conf);
         } catch (URISyntaxException e) {
@@ -152,7 +152,7 @@ public final class HadoopClientFactory {
 
         String nameNode = uri.getAuthority();
         if (nameNode == null) {
-            nameNode = conf.get(CommonConfigurationKeys.FS_DEFAULT_NAME_KEY);
+            nameNode = conf.get(FS_DEFAULT_NAME_KEY);
             if (nameNode != null) {
                 try {
                     new URI(nameNode).getAuthority();

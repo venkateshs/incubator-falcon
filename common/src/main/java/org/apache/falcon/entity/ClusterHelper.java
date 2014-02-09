@@ -21,10 +21,7 @@ package org.apache.falcon.entity;
 import org.apache.falcon.entity.v0.cluster.*;
 import org.apache.falcon.hadoop.HadoopClientFactory;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.CommonConfigurationKeys;
 import org.apache.hadoop.fs.Path;
-
-import java.io.IOException;
 
 /**
  * Helper to get end points relating to the cluster.
@@ -39,7 +36,7 @@ public final class ClusterHelper {
         Configuration conf = new Configuration();
 
         final String storageUrl = getStorageUrl(cluster);
-        conf.set(CommonConfigurationKeys.FS_DEFAULT_NAME_KEY, storageUrl);
+        conf.set(HadoopClientFactory.FS_DEFAULT_NAME_KEY, storageUrl);
 
         final String executeEndPoint = getMREndPoint(cluster);
         conf.set(HadoopClientFactory.MR_JOB_TRACKER_KEY, executeEndPoint);
