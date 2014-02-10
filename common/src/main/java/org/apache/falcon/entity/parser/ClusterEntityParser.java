@@ -29,16 +29,18 @@ import org.apache.falcon.entity.EntityUtil;
 import org.apache.falcon.entity.store.StoreAccessException;
 import org.apache.falcon.entity.v0.EntityType;
 import org.apache.falcon.entity.v0.cluster.Cluster;
+import org.apache.falcon.hadoop.HadoopClientFactory;
 import org.apache.falcon.entity.v0.cluster.Interfacetype;
 import org.apache.falcon.entity.v0.cluster.Interface;
+import org.apache.falcon.security.SecurityUtil;
+import org.apache.falcon.util.Preconditions;
 import org.apache.falcon.util.StartupProperties;
 import org.apache.falcon.workflow.WorkflowEngineFactory;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.mapred.JobClient;
-import org.apache.hadoop.mapred.JobConf;
+import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.log4j.Logger;
+
 /**
  * Parser that parses cluster entity definition.
  */
@@ -51,8 +53,7 @@ public class ClusterEntityParser extends EntityParser<Cluster> {
     }
 
     @Override
-    public void validate(Cluster cluster) throws StoreAccessException,
-                                                 ValidationException {
+    public void validate(Cluster cluster) throws StoreAccessException, ValidationException {
         // validating scheme in light of fail-early
         validateScheme(cluster, Interfacetype.READONLY);
         validateScheme(cluster, Interfacetype.WRITE);
@@ -88,23 +89,34 @@ public class ClusterEntityParser extends EntityParser<Cluster> {
         final String readOnlyStorageUrl = ClusterHelper.getReadOnlyStorageUrl(cluster);
         LOG.info("Validating read interface: " + readOnlyStorageUrl);
 
-        validateFileSystem(readOnlyStorageUrl);
+        validateFileSystem(cluster, readOnlyStorageUrl);
     }
 
     private void validateWriteInterface(Cluster cluster) throws ValidationException {
         final String writeStorageUrl = ClusterHelper.getStorageUrl(cluster);
         LOG.info("Validating write interface: " + writeStorageUrl);
 
-        validateFileSystem(writeStorageUrl);
+        validateFileSystem(cluster, writeStorageUrl);
     }
 
-    private void validateFileSystem(String storageUrl) throws ValidationException {
+    private void validateFileSystem(Cluster cluster, String storageUrl) throws ValidationException {
         try {
             Configuration conf = new Configuration();
-            conf.set("fs.default.name", storageUrl);
+            conf.set(HadoopClientFactory.FS_DEFAULT_NAME_KEY, storageUrl);
             conf.setInt("ipc.client.connect.max.retries", 10);
-            FileSystem.get(conf);
-        } catch (IOException e) {
+
+            if (UserGroupInformation.isSecurityEnabled()) {
+                String nameNodePrincipal = ClusterHelper.getPropertyValue(cluster, SecurityUtil.NN_PRINCIPAL);
+                Preconditions.checkNotEmpty(nameNodePrincipal,
+                    "Cluster definition missing required namenode credential property: " + SecurityUtil.NN_PRINCIPAL);
+
+                conf.set(SecurityUtil.NN_PRINCIPAL, nameNodePrincipal);
+            }
+
+            // todo: ideally check if the end user has access using createProxiedFileSystem
+            // hftp won't work and bug is logged at HADOOP-10215
+            HadoopClientFactory.get().createFileSystem(conf);
+        } catch (FalconException e) {
             throw new ValidationException("Invalid storage server or port: " + storageUrl, e);
         }
     }
@@ -114,11 +126,7 @@ public class ClusterEntityParser extends EntityParser<Cluster> {
         LOG.info("Validating execute interface: " + executeUrl);
 
         try {
-            JobConf jobConf = new JobConf();
-            jobConf.set("mapred.job.tracker", executeUrl);
-            jobConf.set("yarn.resourcemanager.address", executeUrl);
-            JobClient jobClient = new JobClient(jobConf);
-            jobClient.getClusterStatus().getMapTasks();
+            HadoopClientFactory.validateJobClient(executeUrl);
         } catch (IOException e) {
             throw new ValidationException("Invalid Execute server or port: " + executeUrl, e);
         }

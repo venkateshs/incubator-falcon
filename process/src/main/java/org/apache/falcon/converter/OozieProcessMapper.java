@@ -41,6 +41,7 @@ import org.apache.falcon.entity.v0.process.Process;
 import org.apache.falcon.entity.v0.process.Property;
 import org.apache.falcon.entity.v0.process.Workflow;
 import org.apache.falcon.expression.ExpressionHelper;
+import org.apache.falcon.hadoop.HadoopClientFactory;
 import org.apache.falcon.messaging.EntityInstanceMessage.ARG;
 import org.apache.falcon.oozie.coordinator.CONTROLS;
 import org.apache.falcon.oozie.coordinator.COORDINATORAPP;
@@ -97,7 +98,7 @@ public class OozieProcessMapper extends AbstractOozieEntityMapper<Process> {
     @Override
     protected List<COORDINATORAPP> getCoordinators(Cluster cluster, Path bundlePath) throws FalconException {
         try {
-            FileSystem fs = ClusterHelper.getFileSystem(cluster);
+            FileSystem fs = HadoopClientFactory.get().createFileSystem(ClusterHelper.getConfiguration(cluster));
             Process process = getEntity();
 
             //Copy user workflow and lib to staging dir
@@ -136,7 +137,7 @@ public class OozieProcessMapper extends AbstractOozieEntityMapper<Process> {
 
     private Path getUserWorkflowPath(Cluster cluster, Path bundlePath) throws FalconException {
         try {
-            FileSystem fs = FileSystem.get(ClusterHelper.getConfiguration(cluster));
+            FileSystem fs = HadoopClientFactory.get().createProxiedFileSystem(ClusterHelper.getConfiguration(cluster));
             Process process = getEntity();
             Path wfPath = new Path(process.getWorkflow().getPath());
             if (fs.isFile(wfPath)) {
@@ -151,12 +152,13 @@ public class OozieProcessMapper extends AbstractOozieEntityMapper<Process> {
 
     private Path getUserLibPath(Cluster cluster, Path bundlePath) throws FalconException {
         try {
-            FileSystem fs = FileSystem.get(ClusterHelper.getConfiguration(cluster));
             Process process = getEntity();
             if (process.getWorkflow().getLib() == null) {
                 return null;
             }
             Path libPath = new Path(process.getWorkflow().getLib());
+
+            FileSystem fs = HadoopClientFactory.get().createProxiedFileSystem(ClusterHelper.getConfiguration(cluster));
             if (fs.isFile(libPath)) {
                 return new Path(bundlePath, EntityUtil.PROCESS_USERLIB_DIR + "/" + libPath.getName().toString());
             } else {
@@ -750,7 +752,7 @@ public class OozieProcessMapper extends AbstractOozieEntityMapper<Process> {
                                         String prefix) throws FalconException {
         String catalogUrl = ClusterHelper.getInterface(cluster, Interfacetype.REGISTRY).getEndpoint();
         try {
-            FileSystem fs = FileSystem.get(ClusterHelper.getConfiguration(cluster));
+            FileSystem fs = HadoopClientFactory.get().createFileSystem(ClusterHelper.getConfiguration(cluster));
             Path confPath = new Path(wfPath, "conf");
             createHiveConf(fs, confPath, catalogUrl, prefix);
         } catch (IOException e) {
