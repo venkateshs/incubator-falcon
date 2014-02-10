@@ -33,7 +33,10 @@ import org.apache.oozie.client.ProxyOozieClient;
 import org.apache.oozie.client.WorkflowJob;
 
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
  * Oozie Utility class for integration-tests.
@@ -102,25 +105,26 @@ public final class OozieTestUtils {
                         + ProxyOozieClient.FILTER_NAME + '=' + "FALCON_PROCESS_DEFAULT_" + entityName);
     }
 
-    public static void waitForBundleStart(TestContext context, Job.Status status) throws Exception {
+    public static void waitForBundleStart(TestContext context, Job.Status... status) throws Exception {
         ProxyOozieClient ozClient = getOozieClient(context);
         List<BundleJob> bundles = getBundles(context);
         if (bundles.isEmpty()) {
             return;
         }
 
+        Set<Job.Status> statuses = new HashSet<Job.Status>(Arrays.asList(status));
         String bundleId = bundles.get(0).getId();
         for (int i = 0; i < 15; i++) {
             Thread.sleep(i * 1000);
             BundleJob bundle = ozClient.getBundleJobInfo(bundleId);
-            if (bundle.getStatus() == status) {
-                if (status == Job.Status.FAILED) {
+            if (statuses.contains(bundle.getStatus())) {
+                if (statuses.contains(Job.Status.FAILED) || statuses.contains(Job.Status.KILLED)) {
                     return;
                 }
 
                 boolean done = false;
                 for (CoordinatorJob coord : bundle.getCoordinators()) {
-                    if (coord.getStatus() == status) {
+                    if (statuses.contains(coord.getStatus())) {
                         done = true;
                     }
                 }
@@ -128,9 +132,9 @@ public final class OozieTestUtils {
                     return;
                 }
             }
-            System.out.println("Waiting for bundle " + bundleId + " in " + status + " state");
+            System.out.println("Waiting for bundle " + bundleId + " in " + statuses + " state");
         }
-        throw new Exception("Bundle " + bundleId + " is not " + status + " in oozie");
+        throw new Exception("Bundle " + bundleId + " is not " + statuses + " in oozie");
     }
 
     public static WorkflowJob getWorkflowJob(Cluster cluster, String filter) throws Exception {
