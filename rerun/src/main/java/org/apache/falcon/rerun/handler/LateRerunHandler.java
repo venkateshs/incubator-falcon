@@ -50,8 +50,9 @@ public class LateRerunHandler<M extends DelayedQueue<LaterunEvent>> extends
         AbstractRerunHandler<LaterunEvent, M> {
 
     @Override
-    public void handleRerun(String cluster, String entityType, String entityName,
-                            String nominalTime, String runId, String wfId, long msgReceivedTime) {
+    //SUSPEND CHECKSTYLE CHECK ParameterNumberCheck
+    public void handleRerun(String cluster, String entityType, String entityName, String nominalTime,
+                            String runId, String wfId, String workflowUser, long msgReceivedTime) {
         try {
             Entity entity = EntityUtil.getEntity(entityType, entityName);
             try {
@@ -66,6 +67,7 @@ public class LateRerunHandler<M extends DelayedQueue<LaterunEvent>> extends
                 LOG.error("Unable to get Late Process for entity:" + entityName);
                 return;
             }
+
             int intRunId = Integer.parseInt(runId);
             Date msgInsertTime = EntityUtil.parseDateUTC(nominalTime);
             Long wait = getEventDelay(entity, nominalTime);
@@ -96,16 +98,17 @@ public class LateRerunHandler<M extends DelayedQueue<LaterunEvent>> extends
                     + entityType + "(" + entityName + ")" + ":" + nominalTime
                     + " And WorkflowId: " + wfId);
             LaterunEvent event = new LaterunEvent(cluster, wfId, msgInsertTime.getTime(),
-                    wait, entityType, entityName, nominalTime, intRunId);
+                    wait, entityType, entityName, nominalTime, intRunId, workflowUser);
             offerToQueue(event);
         } catch (Exception e) {
             LOG.error("Unable to schedule late rerun for entity instance : "
                     + entityType + "(" + entityName + ")" + ":" + nominalTime
                     + " And WorkflowId: " + wfId, e);
             GenericAlert.alertLateRerunFailed(entityType, entityName,
-                    nominalTime, wfId, runId, e.getMessage());
+                    nominalTime, wfId, workflowUser, runId, e.getMessage());
         }
     }
+    //SUSPEND CHECKSTYLE CHECK ParameterNumberCheck
 
     private long getEventDelay(Entity entity, String nominalTime) throws FalconException {
 
