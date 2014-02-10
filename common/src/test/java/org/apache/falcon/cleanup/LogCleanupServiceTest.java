@@ -81,7 +81,6 @@ public class LogCleanupServiceTest extends AbstractTestBase {
         this.dfsCluster = EmbeddedCluster.newCluster("testCluster");
         conf = dfsCluster.getConf();
         fs = dfsCluster.getFileSystem();
-        fs.delete(new Path("/"), true);
 
         storeEntity(EntityType.CLUSTER, "testCluster");
         System.setProperty("test.build.data", "target/tdfs/data" + System.currentTimeMillis());
@@ -113,7 +112,6 @@ public class LogCleanupServiceTest extends AbstractTestBase {
         fs.createNewFile(new Path(instanceLogPath, "pigAction_SUCCEEDED.log"));
 
         tfs = targetDfsCluster.getFileSystem();
-        tfs.delete(new Path("/"), true);
         fs.mkdirs(feedInstanceLogPath);
         fs.mkdirs(feedInstanceLogPath1);
         tfs.mkdirs(feedInstanceLogPath);
