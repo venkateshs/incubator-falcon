@@ -38,6 +38,7 @@ import org.apache.falcon.oozie.coordinator.COORDINATORAPP;
 import org.apache.falcon.oozie.coordinator.ObjectFactory;
 import org.apache.falcon.oozie.workflow.ACTION;
 import org.apache.falcon.oozie.workflow.WORKFLOWAPP;
+import org.apache.falcon.security.SecurityUtil;
 import org.apache.falcon.service.FalconPathFilter;
 import org.apache.falcon.service.SharedLibraryHostingService;
 import org.apache.falcon.util.RuntimeProperties;
@@ -49,6 +50,7 @@ import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.permission.FsAction;
 import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.hadoop.hive.conf.HiveConf;
+import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.log4j.Logger;
 import org.apache.oozie.client.OozieClient;
 
@@ -398,10 +400,16 @@ public abstract class AbstractOozieEntityMapper<T extends Entity> {
     }
 
     protected void createHiveConf(FileSystem fs, Path confPath, String metastoreUrl,
-                                  String prefix) throws IOException {
+                                  Cluster cluster, String prefix) throws IOException {
         Configuration hiveConf = new Configuration(false);
         hiveConf.set(HiveConf.ConfVars.METASTOREURIS.varname, metastoreUrl);
         hiveConf.set("hive.metastore.local", "false");
+
+        if (UserGroupInformation.isSecurityEnabled()) {
+            hiveConf.set(HiveConf.ConfVars.METASTORE_KERBEROS_PRINCIPAL.varname,
+                    ClusterHelper.getPropertyValue(cluster, SecurityUtil.HIVE_METASTORE_PRINCIPAL));
+            hiveConf.set(HiveConf.ConfVars.METASTORE_USE_THRIFT_SASL.varname, "true");
+        }
 
         OutputStream out = null;
         try {
