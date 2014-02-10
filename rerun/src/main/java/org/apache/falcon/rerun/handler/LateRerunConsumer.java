@@ -22,6 +22,7 @@ import org.apache.falcon.entity.EntityUtil;
 import org.apache.falcon.entity.v0.Entity;
 import org.apache.falcon.entity.v0.SchemaHelper;
 import org.apache.falcon.entity.v0.process.LateInput;
+import org.apache.falcon.hadoop.HadoopClientFactory;
 import org.apache.falcon.latedata.LateDataHandler;
 import org.apache.falcon.rerun.event.LaterunEvent;
 import org.apache.falcon.rerun.queue.DelayedQueue;
@@ -106,7 +107,7 @@ public class LateRerunConsumer<T extends LateRerunHandler<DelayedQueue<LaterunEv
 
         final String storageEndpoint = properties.getProperty(AbstractWorkflowEngine.NAME_NODE);
         Configuration conf = LateRerunHandler.getConfiguration(storageEndpoint);
-        FileSystem fs = FileSystem.get(conf);
+        FileSystem fs = HadoopClientFactory.get().createFileSystem(conf);
         if (!fs.exists(lateLogPath)) {
             LOG.warn("Late log file:" + lateLogPath + " not found:");
             return "";

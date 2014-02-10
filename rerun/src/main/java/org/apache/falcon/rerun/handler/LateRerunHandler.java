@@ -29,13 +29,13 @@ import org.apache.falcon.entity.v0.feed.Feed;
 import org.apache.falcon.entity.v0.process.*;
 import org.apache.falcon.entity.v0.process.Process;
 import org.apache.falcon.expression.ExpressionHelper;
+import org.apache.falcon.hadoop.HadoopClientFactory;
 import org.apache.falcon.rerun.event.LaterunEvent;
 import org.apache.falcon.rerun.policy.AbstractRerunPolicy;
 import org.apache.falcon.rerun.policy.RerunPolicyFactory;
 import org.apache.falcon.rerun.queue.DelayedQueue;
 import org.apache.falcon.workflow.engine.AbstractWorkflowEngine;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.CommonConfigurationKeys;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
@@ -81,7 +81,8 @@ public class LateRerunHandler<M extends DelayedQueue<LaterunEvent>> extends
 
                 LOG.info("Going to delete path:" + lateLogPath);
                 final String storageEndpoint = properties.getProperty(AbstractWorkflowEngine.NAME_NODE);
-                FileSystem fs = FileSystem.get(getConfiguration(storageEndpoint));
+                Configuration conf = getConfiguration(storageEndpoint);
+                FileSystem fs = HadoopClientFactory.get().createFileSystem(conf);
                 if (fs.exists(lateLogPath)) {
                     boolean deleted = fs.delete(lateLogPath, true);
                     if (deleted) {
@@ -217,7 +218,7 @@ public class LateRerunHandler<M extends DelayedQueue<LaterunEvent>> extends
 
     public static Configuration getConfiguration(String storageEndpoint) throws FalconException {
         Configuration conf = new Configuration();
-        conf.set(CommonConfigurationKeys.FS_DEFAULT_NAME_KEY, storageEndpoint);
+        conf.set(HadoopClientFactory.FS_DEFAULT_NAME_KEY, storageEndpoint);
         return conf;
     }
 }
