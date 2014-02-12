@@ -21,6 +21,7 @@ import org.apache.commons.cli.*;
 import org.apache.commons.lang.StringUtils;
 import org.apache.falcon.logging.LogMover;
 import org.apache.falcon.messaging.MessageProducer;
+import org.apache.falcon.metadata.LineageRecorder;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.conf.Configured;
 import org.apache.hadoop.security.UserGroupInformation;
@@ -48,7 +49,7 @@ public class FalconPostProcessing extends Configured implements Tool {
         OPERATION("operation", "operation like generate, delete, replicate"),
         WORKFLOW_ID("workflowId", "current workflow-id of the instance"),
         RUN_ID("runId", "current run-id of the instance"),
-        STATUS("status", "status of the user workflow isnstance"),
+        STATUS("status", "status of the user workflow instance"),
         TIMESTAMP("timeStamp", "current timestamp"),
         TOPIC_NAME("topicName", "name of the topic to be used to send JMS message"),
         BRKR_IMPL_CLASS("brokerImplClass", "falcon message broker Implementation class"),
@@ -62,8 +63,14 @@ public class FalconPostProcessing extends Configured implements Tool {
         WF_ENGINE_URL("workflowEngineUrl", "url of workflow engine server, ex:oozie"),
         USER_SUBFLOW_ID("subflowId", "external id of user workflow"),
         USER_WORKFLOW_ENGINE("userWorkflowEngine", "user workflow engine type"),
+        USER_WORKFLOW_NAME("userWorkflowName", "user workflow name"),
+        USER_WORKFLOW_VERSION("userWorkflowVersion", "user workflow version"),
         LOG_DIR("logDir", "log dir where job logs are copied"),
-        WORKFLOW_USER("workflowUser", "user who owns the feed instance (partition)");
+        WORKFLOW_USER("workflowUser", "user who owns the feed instance (partition)"),
+        INPUT_FEED_NAMES("falconInputFeeds", "name of the feeds which are used as inputs"),
+        INPUT_FEED_PATHS("falconInputPaths", "comma separated input feed instance paths"),
+        INPUT_FEED_TYPES("falconInputTypes", "comma separated input feed storage types"),
+        ;
 
         private String name;
         private String description;
@@ -101,6 +108,11 @@ public class FalconPostProcessing extends Configured implements Tool {
         //LogMover doesn't throw exception, a failed log mover will not fail the user workflow
         LOG.info("Moving logs " + cmd);
         invokeLogProducer(cmd);
+
+        if ("SUCCEEDED".equals(Arg.STATUS.getOptionValue(cmd))) {
+            LOG.info("Recording lineage for " + cmd);
+            recordLineageMetadata(cmd);
+        }
 
         LOG.info("Sending falcon message " + cmd);
         invokeFalconMessageProducer(cmd);
@@ -181,6 +193,19 @@ public class FalconPostProcessing extends Configured implements Tool {
         LogMover.main(args.toArray(new String[0]));
     }
 
+    private void recordLineageMetadata(CommandLine cmd) throws Exception {
+        List<String> args = new ArrayList<String>();
+
+        for (LineageRecorder.Arg arg : LineageRecorder.Arg.values()) {
+            if (StringUtils.isNotEmpty(arg.getOptionValue(cmd))) {
+                args.add("-" + arg.getOptionName());
+                args.add(arg.getOptionValue(cmd));
+            }
+        }
+
+        LineageRecorder.main(args.toArray(new String[args.size()]));
+    }
+
     private void addArg(List<String> args, CommandLine cmd, Arg arg) {
         if (StringUtils.isNotEmpty(arg.getOptionValue(cmd))) {
             args.add("-" + arg.getOptionName());
@@ -211,9 +236,14 @@ public class FalconPostProcessing extends Configured implements Tool {
         addOption(options, Arg.LOG_FILE);
         addOption(options, Arg.WF_ENGINE_URL);
         addOption(options, Arg.USER_SUBFLOW_ID);
+        addOption(options, Arg.USER_WORKFLOW_NAME, false);
+        addOption(options, Arg.USER_WORKFLOW_VERSION, false);
         addOption(options, Arg.USER_WORKFLOW_ENGINE, false);
         addOption(options, Arg.LOG_DIR);
         addOption(options, Arg.WORKFLOW_USER);
+        addOption(options, Arg.INPUT_FEED_NAMES, false);
+        addOption(options, Arg.INPUT_FEED_PATHS, false);
+        addOption(options, Arg.INPUT_FEED_TYPES, false);
 
         return new GnuParser().parse(options, arguments);
     }
