@@ -125,7 +125,7 @@ public class LineageRecorder  extends Configured implements Tool {
         return 0;
     }
 
-    private static CommandLine getCommand(String[] arguments) throws ParseException {
+    protected static CommandLine getCommand(String[] arguments) throws ParseException {
 
         Options options = new Options();
 
@@ -146,7 +146,7 @@ public class LineageRecorder  extends Configured implements Tool {
         options.addOption(option);
     }
 
-    private Map<String, String> getLineageMetadata(CommandLine command) {
+    protected Map<String, String> getLineageMetadata(CommandLine command) {
         Map<String, String> lineageMetadata = new HashMap<String, String>();
 
         for (Arg arg : Arg.values()) {
@@ -160,7 +160,7 @@ public class LineageRecorder  extends Configured implements Tool {
         return logDir + "/lineage/" + nominalTime + ".json";
     }
 
-    private void persistLineageMetadata(Map<String, String> lineageMetadata,
+    protected void persistLineageMetadata(Map<String, String> lineageMetadata,
                                         String lineageFile) throws IOException, FalconException {
         OutputStream out = null;
         Path file = new Path(lineageFile);
