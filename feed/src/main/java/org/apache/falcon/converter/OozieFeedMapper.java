@@ -46,6 +46,7 @@ import org.apache.falcon.oozie.coordinator.COORDINATORAPP;
 import org.apache.falcon.oozie.coordinator.SYNCDATASET;
 import org.apache.falcon.oozie.coordinator.WORKFLOW;
 import org.apache.falcon.oozie.workflow.WORKFLOWAPP;
+import org.apache.falcon.util.BuildProperties;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -432,6 +433,7 @@ public class OozieFeedMapper extends AbstractOozieEntityMapper<Feed> {
                 }
 
                 propagateLateDataProperties(feed, instancePaths, sourceStorage.getType().name(), props);
+                propagateUserWorkflowProperties(props);
 
                 replicationWF.setConfiguration(getCoordConfig(props));
                 replicationAction.setWorkflow(replicationWF);
@@ -547,7 +549,20 @@ public class OozieFeedMapper extends AbstractOozieEntityMapper<Feed> {
 
             // falcon post processing
             props.put(ARG.feedNames.getPropName(), feed.getName());
-            props.put(ARG.feedInstancePaths.getPropName(), instancePaths);
+            props.put(ARG.feedInstancePaths.getPropName(), "${coord:dataOut('output')}");
+        }
+
+        private void propagateUserWorkflowProperties(Map<String, String> props) {
+            props.put("userWorkflowName", "replication-policy");
+            props.put("userWorkflowEngine", "falcon");
+
+            String version;
+            try {
+                version = BuildProperties.get().getProperty("build.version");
+            } catch (Exception e) {  // unfortunate that this is only available in prism/webapp
+                version = "0.5";
+            }
+            props.put("userWorkflowVersion", version);
         }
     }
 

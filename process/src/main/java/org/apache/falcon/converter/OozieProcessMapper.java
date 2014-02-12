@@ -190,7 +190,7 @@ public class OozieProcessMapper extends AbstractOozieEntityMapper<Process> {
         initializeOutputPaths(cluster, process, coord, props);  // outputs
 
         Workflow processWorkflow = process.getWorkflow();
-        props.put("userWorkflowEngine", processWorkflow.getEngine().value());
+        propagateUserWorkflowProperties(processWorkflow, props);
 
         // create parent wf
         createWorkflow(cluster, process, processWorkflow, coordName, coordPath);
@@ -281,7 +281,7 @@ public class OozieProcessMapper extends AbstractOozieEntityMapper<Process> {
                 propagateCatalogTableProperties(input, (CatalogStorage) storage, props);
             }
 
-            inputFeeds.add(input.getName());
+            inputFeeds.add(feed.getName());
             inputPaths.add(inputExpr);
             inputFeedStorageTypes.add(storage.getType().name());
         }
@@ -327,7 +327,7 @@ public class OozieProcessMapper extends AbstractOozieEntityMapper<Process> {
             coord.getOutputEvents().getDataOut().add(dataout);
 
             String outputExpr = "${coord:dataOut('" + output.getName() + "')}";
-            outputFeeds.add(output.getName());
+            outputFeeds.add(feed.getName());
             outputPaths.add(outputExpr);
 
             if (storage.getType() == Storage.TYPE.FILESYSTEM) {
@@ -484,6 +484,13 @@ public class OozieProcessMapper extends AbstractOozieEntityMapper<Process> {
             }
         }
         return props;
+    }
+
+    private void propagateUserWorkflowProperties(Workflow processWorkflow, Map<String, String> props) {
+        String name = processWorkflow.getName();
+        props.put("userWorkflowName", name != null ? name : "${wf:name()}");
+        props.put("userWorkflowVersion", processWorkflow.getVersion());
+        props.put("userWorkflowEngine", processWorkflow.getEngine().value());
     }
 
     protected void createWorkflow(Cluster cluster, Process process, Workflow processWorkflow,

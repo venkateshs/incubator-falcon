@@ -38,6 +38,7 @@ import org.apache.falcon.entity.v0.process.Input;
 import org.apache.falcon.entity.v0.process.Output;
 import org.apache.falcon.entity.v0.process.Process;
 import org.apache.falcon.entity.v0.process.Validity;
+import org.apache.falcon.entity.v0.process.Workflow;
 import org.apache.falcon.oozie.bundle.BUNDLEAPP;
 import org.apache.falcon.oozie.coordinator.CONFIGURATION.Property;
 import org.apache.falcon.oozie.coordinator.COORDINATORAPP;
@@ -332,12 +333,12 @@ public class OozieProcessMapperTest extends AbstractTestBase {
         }
 
         // verify the late data params
-        Assert.assertEquals(props.get("falconInputFeeds"), process.getInputs().getInputs().get(0).getName());
+        Assert.assertEquals(props.get("falconInputFeeds"), process.getInputs().getInputs().get(0).getFeed());
         Assert.assertEquals(props.get("falconInPaths"), "${coord:dataIn('input')}");
         Assert.assertEquals(props.get("falconInputFeedStorageTypes"), Storage.TYPE.TABLE.name());
 
         // verify the post processing params
-        Assert.assertEquals(props.get("feedNames"), process.getOutputs().getOutputs().get(0).getName());
+        Assert.assertEquals(props.get("feedNames"), process.getOutputs().getOutputs().get(0).getFeed());
         Assert.assertEquals(props.get("feedInstancePaths"), "${coord:dataOut('output')}");
     }
 
@@ -372,6 +373,14 @@ public class OozieProcessMapperTest extends AbstractTestBase {
         } else if (prefix.equals("falcon_output")) {
             props.put(prefix + "_dataout_partitions", "${coord:dataOutPartitions('output')}");
         }
+    }
+
+    @Test
+    public void testProcessWorkflowMapper() throws Exception {
+        Process process = ConfigurationStore.get().get(EntityType.PROCESS, "clicksummary");
+        Workflow processWorkflow = process.getWorkflow();
+        Assert.assertEquals("test", processWorkflow.getName());
+        Assert.assertEquals("1.0.0", processWorkflow.getVersion());
     }
 
     @SuppressWarnings("unchecked")
