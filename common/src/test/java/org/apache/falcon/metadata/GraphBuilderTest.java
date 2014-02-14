@@ -111,7 +111,8 @@ public class GraphBuilderTest {
         Feed impressionsFeed = buildFeed("impression-feed", clusterEntity,
                 "classified-as=Secure", "analytics");
         store.publish(EntityType.FEED, impressionsFeed);
-        verifyEntityWasAddedToGraph("impression-feed", GraphBuilder.FEED_ENTITY_TYPE);
+        verifyEntityWasAddedToGraph(impressionsFeed.getName(), GraphBuilder.FEED_ENTITY_TYPE);
+        verifyFeedEntityEdges(impressionsFeed.getName());
 
         Feed clicksFeed = buildFeed("clicks-feed", clusterEntity,
                 "classified-as=Secure,classified-as=Financial", "analytics");
@@ -139,6 +140,7 @@ public class GraphBuilderTest {
 
         store.publish(EntityType.PROCESS, process);
         verifyEntityWasAddedToGraph(process.getName(), GraphBuilder.PROCESS_ENTITY_TYPE);
+        verifyProcessEntityEdges();
 
         graphBuilder.debug();
 
@@ -232,28 +234,69 @@ public class GraphBuilderTest {
 
     private void verifyClusterEntityEdges() {
         Vertex clusterVertex = getEntityVertex(CLUSTER_ENTITY_NAME, GraphBuilder.CLUSTER_ENTITY_TYPE);
-        int count = 0;
-        for (Edge edge : clusterVertex.getEdges(Direction.OUT)) {
-            count++;
-            String edgeLabel = edge.getLabel();
 
-            Vertex outgoingVertex = edge.getVertex(Direction.OUT);
-            String name = outgoingVertex.getProperty(GraphBuilder.NAME_PROPERTY_KEY);
-            String type = outgoingVertex.getProperty(GraphBuilder.TYPE_PROPERTY_KEY);
+        // verify edge to user vertex
+        verifyVertexForEdge(clusterVertex, Direction.OUT, GraphBuilder.USER_LABEL,
+                FALCON_USER, GraphBuilder.USER_TYPE);
+        // verify edge to colo vertex
+        verifyVertexForEdge(clusterVertex, Direction.OUT, GraphBuilder.CLUSTER_COLO_LABEL,
+                COLO_NAME, GraphBuilder.COLO_TYPE);
+        // verify edge to tags vertex
+        verifyVertexForEdge(clusterVertex, Direction.OUT, "classification",
+                "production", GraphBuilder.TAGS_TYPE);
+    }
 
-            if (GraphBuilder.USER_TYPE.equals(type)) {
-                Assert.assertEquals(FALCON_USER, name);
-                Assert.assertEquals(GraphBuilder.USER_LABEL, edgeLabel);
-            } if (GraphBuilder.COLO_TYPE.equals(type)) {
-                Assert.assertEquals(COLO_NAME, name);
-                Assert.assertEquals(GraphBuilder.CLUSTER_COLO_LABEL, edgeLabel);
-            } if (GraphBuilder.TAGS_TYPE.equals(type)) {
-                Assert.assertEquals("production", name);
-                Assert.assertEquals("classification", edgeLabel);
+    private void verifyFeedEntityEdges(String feedName) {
+        Vertex feedVertex = getEntityVertex(feedName, GraphBuilder.FEED_ENTITY_TYPE);
+
+        // verify edge to cluster vertex
+        verifyVertexForEdge(feedVertex, Direction.OUT, GraphBuilder.FEED_CLUSTER_EDGE_LABEL,
+                CLUSTER_ENTITY_NAME, GraphBuilder.CLUSTER_ENTITY_TYPE);
+        // verify edge to user vertex
+        verifyVertexForEdge(feedVertex, Direction.OUT, GraphBuilder.USER_LABEL,
+                FALCON_USER, GraphBuilder.USER_TYPE);
+        // verify edge to tags vertex
+        verifyVertexForEdge(feedVertex, Direction.OUT, "classified-as",
+                "Secure", GraphBuilder.TAGS_TYPE);
+        // verify edge to group vertex
+        verifyVertexForEdge(feedVertex, Direction.OUT, GraphBuilder.GROUPS_LABEL,
+                "analytics", GraphBuilder.GROUPS_TYPE);
+    }
+
+    private void verifyProcessEntityEdges() {
+        Vertex processVertex = getEntityVertex(PROCESS_ENTITY_NAME, GraphBuilder.PROCESS_ENTITY_TYPE);
+
+        // verify edge to cluster vertex
+        verifyVertexForEdge(processVertex, Direction.OUT, GraphBuilder.FEED_CLUSTER_EDGE_LABEL,
+                CLUSTER_ENTITY_NAME, GraphBuilder.CLUSTER_ENTITY_TYPE);
+        // verify edge to user vertex
+        verifyVertexForEdge(processVertex, Direction.OUT, GraphBuilder.USER_LABEL,
+                FALCON_USER, GraphBuilder.USER_TYPE);
+        // verify edge to tags vertex
+        verifyVertexForEdge(processVertex, Direction.OUT, "classified-as",
+                "Critical", GraphBuilder.TAGS_TYPE);
+
+        // verify edge to inputs vertex
+        for (Edge edge : processVertex.getEdges(Direction.OUT, GraphBuilder.FEED_PROCESS_EDGE_LABEL)) {
+            Vertex outVertex = edge.getVertex(Direction.OUT);
+            Assert.assertEquals(GraphBuilder.FEED_ENTITY_TYPE,
+                    outVertex.getProperty(GraphBuilder.TYPE_PROPERTY_KEY));
+            String name = outVertex.getProperty(GraphBuilder.NAME_PROPERTY_KEY);
+            if (!(name.equals("impression-feed") || name.equals("clicks-feed"))) {
+                Assert.fail("feed name should have been one of impression-feed or clicks-feed");
             }
         }
 
-        Assert.assertEquals(3, count);
+        // verify edge to outputs vertex
+        for (Edge edge : processVertex.getEdges(Direction.IN, GraphBuilder.PROCESS_FEED_EDGE_LABEL)) {
+            Vertex outVertex = edge.getVertex(Direction.IN);
+            Assert.assertEquals(GraphBuilder.FEED_ENTITY_TYPE,
+                    outVertex.getProperty(GraphBuilder.TYPE_PROPERTY_KEY));
+            String name = outVertex.getProperty(GraphBuilder.NAME_PROPERTY_KEY);
+            if (!(name.equals("imp-click-join1") || name.equals("imp-click-join2"))) {
+                Assert.fail("feed name should have been one of imp-click-join1 or imp-click-join2");
+            }
+        }
     }
 
     private Vertex getEntityVertex(String entityName, String entityType) {
@@ -267,6 +310,15 @@ public class GraphBuilderTest {
         Assert.assertNotNull(entityVertex);
 
         return entityVertex;
+    }
+
+    private void verifyVertexForEdge(Vertex vertex, Direction direction, String label,
+                                     String expectedName, String expectedType) {
+        for (Edge edge : vertex.getEdges(direction, label)) {
+            Vertex outVertex = edge.getVertex(Direction.IN);
+            Assert.assertEquals(outVertex.getProperty(GraphBuilder.NAME_PROPERTY_KEY), expectedName);
+            Assert.assertEquals(outVertex.getProperty(GraphBuilder.TYPE_PROPERTY_KEY), expectedType);
+        }
     }
 
     private void verifyQuery() {

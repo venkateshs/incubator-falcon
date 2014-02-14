@@ -80,11 +80,11 @@ public class GraphBuilder implements ConfigurationChangeListener {
     public static final String GROUPS_LABEL = "grouped as";
 
     // entity edge labels
-    private static final String FEED_CLUSTER_EDGE_LABEL = "stored in";
-    private static final String PROCESS_CLUSTER_EDGE_LABEL = "runs on";
-    private static final String FEED_PROCESS_EDGE_LABEL = "input";
-    private static final String PROCESS_FEED_EDGE_LABEL = "output";
-    private static final String PROCESS_WORKFLOW_EDGE_LABEL = "executes";
+    public static final String FEED_CLUSTER_EDGE_LABEL = "stored in";
+    public static final String PROCESS_CLUSTER_EDGE_LABEL = "runs on";
+    public static final String FEED_PROCESS_EDGE_LABEL = "input";
+    public static final String PROCESS_FEED_EDGE_LABEL = "output";
+    public static final String PROCESS_WORKFLOW_EDGE_LABEL = "executes";
 
     // instance edge labels
     private static final String INSTANCE_ENTITY_EDGE_LABEL = "instance of";
