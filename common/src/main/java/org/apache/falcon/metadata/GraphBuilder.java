@@ -19,11 +19,13 @@
 package org.apache.falcon.metadata;
 
 import com.thinkaurelius.titan.core.TitanFactory;
+import com.tinkerpop.blueprints.Direction;
 import com.tinkerpop.blueprints.Edge;
 import com.tinkerpop.blueprints.GraphQuery;
 import com.tinkerpop.blueprints.KeyIndexableGraph;
 import com.tinkerpop.blueprints.Vertex;
 import org.apache.falcon.FalconException;
+import org.apache.falcon.entity.store.ConfigurationStore;
 import org.apache.falcon.entity.v0.Entity;
 import org.apache.falcon.entity.v0.cluster.Cluster;
 import org.apache.falcon.entity.v0.feed.Feed;
@@ -49,17 +51,23 @@ import java.util.Map;
  */
 public class GraphBuilder implements ConfigurationChangeListener {
 
+    // vertex property keys
+    public static final String NAME_PROPERTY_KEY = "name";
+    public static final String TYPE_PROPERTY_KEY = "type";
+    public static final String TIMESTAMP_PROPERTY_KEY = "timestamp";
+    public static final String VERSION_PROPERTY_KEY = "version";
+
     // vertex types
-    private static final String USER_TYPE = "user";
-    private static final String COLO_TYPE = "data-center";
-    private static final String TAGS_TYPE = "classification";
-    private static final String GROUPS_TYPE = "group";
+    public static final String USER_TYPE = "user";
+    public static final String COLO_TYPE = "data-center";
+    public static final String TAGS_TYPE = "classification";
+    public static final String GROUPS_TYPE = "group";
 
     // entity vertex types
-    private static final String CLUSTER_ENTITY_TYPE = "cluster-entity";
-    private static final String FEED_ENTITY_TYPE = "feed-entity";
-    private static final String PROCESS_ENTITY_TYPE = "process-entity";
-    private static final String USER_WORKFLOW_TYPE = "user-workflow";
+    public static final String CLUSTER_ENTITY_TYPE = "cluster-entity";
+    public static final String FEED_ENTITY_TYPE = "feed-entity";
+    public static final String PROCESS_ENTITY_TYPE = "process-entity";
+    public static final String USER_WORKFLOW_TYPE = "user-workflow";
 
     // instance vertex types
     private static final String FEED_INSTANCE_TYPE = "feed-instance";
@@ -67,19 +75,20 @@ public class GraphBuilder implements ConfigurationChangeListener {
     private static final String WORKFLOW_INSTANCE_TYPE = "workflow-instance";
 
     // edge labels
-    private static final String USER_LABEL = "owned by";
-    private static final String CLUSTER_COLO_LABEL = "collocated";
-    private static final String GROUPS_LABEL = "grouped as";
+    public static final String USER_LABEL = "owned by";
+    public static final String CLUSTER_COLO_LABEL = "collocated";
+    public static final String GROUPS_LABEL = "grouped as";
 
     // entity edge labels
-    private static final String FEED_CLUSTER_EDGE_LABEL = "stored";
-    private static final String PROCESS_CLUSTER_EDGE_LABEL = "processed";
+    private static final String FEED_CLUSTER_EDGE_LABEL = "stored in";
+    private static final String PROCESS_CLUSTER_EDGE_LABEL = "runs on";
     private static final String FEED_PROCESS_EDGE_LABEL = "input";
     private static final String PROCESS_FEED_EDGE_LABEL = "output";
     private static final String PROCESS_WORKFLOW_EDGE_LABEL = "executes";
 
     // instance edge labels
     private static final String INSTANCE_ENTITY_EDGE_LABEL = "instance of";
+    // private static final String PROCESS_INSTANCE_CLUSTER_LABEL = "runs on";
 
     private final KeyIndexableGraph graph;
 
@@ -96,12 +105,22 @@ public class GraphBuilder implements ConfigurationChangeListener {
         graph = TitanFactory.open(confFile.toString());
 
         createIndicesForVertexKeys();
+
+        ConfigurationStore.get().registerListener(this);
     }
 
     private void createIndicesForVertexKeys() {
-        graph.createKeyIndex("name", Vertex.class);
-        graph.createKeyIndex("type", Vertex.class);
-        graph.createKeyIndex("version", Vertex.class);
+        graph.createKeyIndex(NAME_PROPERTY_KEY, Vertex.class);
+        graph.createKeyIndex(TYPE_PROPERTY_KEY, Vertex.class);
+        graph.createKeyIndex(VERSION_PROPERTY_KEY, Vertex.class);
+    }
+
+    protected KeyIndexableGraph getGraph() {
+        return graph;
+    }
+
+    protected GraphQuery getQuery() {
+        return graph.query();
     }
 
     @Override
@@ -124,21 +143,23 @@ public class GraphBuilder implements ConfigurationChangeListener {
     }
 
     private void addClusterEntity(Cluster clusterEntity) {
-        Vertex clusterVertex = addVertex(clusterEntity.getName(), CLUSTER_ENTITY_TYPE);
-        addTimestamp(clusterVertex);
+        Vertex clusterVertex = addVertex(clusterEntity.getName(),
+                CLUSTER_ENTITY_TYPE, System.currentTimeMillis());
 
         addUser(clusterVertex);
         addColo(clusterEntity.getColo(), clusterVertex);
         addDataClassification(clusterEntity.getTags(), clusterVertex);
     }
 
+/*
     private void addTimestamp(Vertex vertex) {
-        vertex.setProperty("timestamp", System.currentTimeMillis());
+        addTimestamp(vertex, System.currentTimeMillis());
     }
 
-    private void addTimestamp(Vertex vertex, String timestamp) {
-        vertex.setProperty("timestamp", timestamp);
+    private void addTimestamp(Vertex vertex, Object timestamp) {
+        vertex.setProperty(TIMESTAMP_PROPERTY_KEY, timestamp);
     }
+*/
 
     private void addUser(Vertex fromVertex) {
         Vertex userVertex = addVertex(CurrentUser.getUser(), USER_TYPE);
@@ -175,31 +196,38 @@ public class GraphBuilder implements ConfigurationChangeListener {
         return vertex;
     }
 
+    private Vertex addVertex(String name, String type, Object timestamp) {
+        Vertex vertex = addVertex(name, type);
+        vertex.setProperty(TIMESTAMP_PROPERTY_KEY, timestamp);
+
+        return vertex;
+    }
+
     private Vertex findVertex(String name, String type) {
         GraphQuery query = graph.query()
-                .has("name", name)
-                .has("type", type);
+                .has(NAME_PROPERTY_KEY, name)
+                .has(TYPE_PROPERTY_KEY, type);
         Iterator<Vertex> results = query.vertices().iterator();
         return results.hasNext() ? results.next() : null;
     }
 
     private Vertex buildVertex(String name, String type) {
         Vertex vertex = graph.addVertex(null);
-        vertex.setProperty("name", name);
-        vertex.setProperty("type", type);
+        vertex.setProperty(NAME_PROPERTY_KEY, name);
+        vertex.setProperty(TYPE_PROPERTY_KEY, type);
 
         return vertex;
     }
 
-    private void addFeedEntity(Feed feedEntity) {
-        Vertex feedVertex = addVertex(feedEntity.getName(), FEED_ENTITY_TYPE);
-        addTimestamp(feedVertex);
+    private void addFeedEntity(Feed feed) {
+        Vertex feedVertex = addVertex(feed.getName(),
+                FEED_ENTITY_TYPE, System.currentTimeMillis());
 
         addUser(feedVertex);
-        addDataClassification(feedEntity.getTags(), feedVertex);
-        addGroups(feedEntity.getGroups(), feedVertex);
+        addDataClassification(feed.getTags(), feedVertex);
+        addGroups(feed.getGroups(), feedVertex);
 
-        for (org.apache.falcon.entity.v0.feed.Cluster feedCluster : feedEntity.getClusters().getClusters()) {
+        for (org.apache.falcon.entity.v0.feed.Cluster feedCluster : feed.getClusters().getClusters()) {
             addCluster(feedCluster.getName(), feedVertex, FEED_CLUSTER_EDGE_LABEL);
         }
     }
@@ -226,20 +254,20 @@ public class GraphBuilder implements ConfigurationChangeListener {
         }
     }
 
-    private void addProcessEntity(Process processEntity) {
-        Vertex processVertex = addVertex(processEntity.getName(), PROCESS_ENTITY_TYPE);
-        addTimestamp(processVertex);
+    private void addProcessEntity(Process process) {
+        Vertex processVertex = addVertex(process.getName(),
+                PROCESS_ENTITY_TYPE, System.currentTimeMillis());
 
         addUser(processVertex);
-        addDataClassification(processEntity.getTags(), processVertex);
+        addDataClassification(process.getTags(), processVertex);
 
-        for (org.apache.falcon.entity.v0.process.Cluster processCluster : processEntity.getClusters().getClusters()) {
-            addCluster(processCluster.getName(), processVertex, PROCESS_CLUSTER_EDGE_LABEL);
+        for (org.apache.falcon.entity.v0.process.Cluster cluster : process.getClusters().getClusters()) {
+            addCluster(cluster.getName(), processVertex, PROCESS_CLUSTER_EDGE_LABEL);
         }
 
-        addInputFeeds(processEntity.getInputs(), processVertex);
-        addOutputFeeds(processEntity.getOutputs(), processVertex);
-        addWorkflow(processEntity.getWorkflow(), processVertex);
+        addInputFeeds(process.getInputs(), processVertex);
+        addOutputFeeds(process.getOutputs(), processVertex);
+        addWorkflow(process.getWorkflow(), processVertex);
     }
 
     private void addInputFeeds(Inputs inputs, Vertex processVertex) {
@@ -268,16 +296,34 @@ public class GraphBuilder implements ConfigurationChangeListener {
             throw new IllegalStateException("Feed entity must exist: " + feedName);
         }
 
-        Edge edge = edgeDirection.equals(FEED_PROCESS_EDGE_LABEL)
+        addProcessFeedEdge(processVertex, feedVertex, edgeDirection);
+    }
+
+    private void addProcessFeedEdge(Vertex processVertex, Vertex feedVertex, String edgeDirection) {
+        /*
+        Edge edge = label.equals(FEED_PROCESS_EDGE_LABEL)
+                ? feedInstance.addEdge(FEED_PROCESS_EDGE_LABEL, processInstance)
+                : processInstance.addEdge(PROCESS_FEED_EDGE_LABEL, feedInstance);
+        // System.out.println("edge = " + edge);
+        */
+
+        /*
+        Edge edge = (edgeDirection.equals(FEED_PROCESS_EDGE_LABEL))
                 ? feedVertex.addEdge(edgeDirection, processVertex)
                 : processVertex.addEdge(edgeDirection, feedVertex);
         System.out.println("edge = " + edge);
+        */
+
+        if (edgeDirection.equals(FEED_PROCESS_EDGE_LABEL)) {
+            feedVertex.addEdge(edgeDirection, processVertex);
+        } else {
+            processVertex.addEdge(edgeDirection, feedVertex);
+        }
     }
 
     private void addWorkflow(Workflow workflow, Vertex processVertex) {
-        Vertex workflowVertex = addVertex(workflow.getName(), USER_WORKFLOW_TYPE);
-        addTimestamp(workflowVertex);
-        workflowVertex.setProperty("version", workflow.getVersion());
+        Vertex workflowVertex = addVertex(workflow.getName(), USER_WORKFLOW_TYPE, System.currentTimeMillis());
+        workflowVertex.setProperty(VERSION_PROPERTY_KEY, workflow.getVersion());
         workflowVertex.setProperty("engine", workflow.getEngine().value());
 
         processVertex.addEdge(PROCESS_WORKFLOW_EDGE_LABEL, workflowVertex);
@@ -306,43 +352,35 @@ public class GraphBuilder implements ConfigurationChangeListener {
         String processInstanceName = getProcessInstance(
                 lineageMetadata.get(Arg.NOMINAL_TIME.getOptionName()), entityName);
 
-        Vertex processInstance = addVertex(processInstanceName, PROCESS_INSTANCE_TYPE);
         String timestamp = lineageMetadata.get(Arg.TIMESTAMP.getOptionName());
-        addTimestamp(processInstance, timestamp);
+        Vertex processInstance = addVertex(processInstanceName, PROCESS_INSTANCE_TYPE, timestamp);
 
         addWorkflowInstance(processInstance, lineageMetadata);
 
         addInstanceToEntity(processInstance, entityName,
                 PROCESS_ENTITY_TYPE, INSTANCE_ENTITY_EDGE_LABEL);
-        addInstanceToEntity(processInstance,
-                lineageMetadata.get(Arg.CLUSTER.getOptionName()), CLUSTER_ENTITY_TYPE, "runs on");
+        addInstanceToEntity(processInstance, lineageMetadata.get(Arg.CLUSTER.getOptionName()),
+                CLUSTER_ENTITY_TYPE, PROCESS_CLUSTER_EDGE_LABEL);
 
         return processInstance;
     }
 
     private void addWorkflowInstance(Vertex processInstance, Map<String, String> lineageMetadata) {
         String workflowId = lineageMetadata.get(Arg.WORKFLOW_ID.getOptionName());
-        Vertex processWorkflowInstance = findOrCreateVertex(workflowId, "workflow-instance");
+        Vertex processWorkflowInstance = addVertex(workflowId,
+                WORKFLOW_INSTANCE_TYPE, lineageMetadata.get(Arg.TIMESTAMP.getOptionName()));
+        processWorkflowInstance.setProperty(VERSION_PROPERTY_KEY, "1.0");
 
-        processWorkflowInstance.setProperty("name", workflowId);
-        processWorkflowInstance.setProperty("type", "workflow-instance");
-        processWorkflowInstance.setProperty("time", lineageMetadata.get("timeStamp"));
-        processWorkflowInstance.setProperty("version", "1.0");
+        processInstance.addEdge(PROCESS_WORKFLOW_EDGE_LABEL, processWorkflowInstance);
 
-        processInstance.addEdge("executes", processWorkflowInstance);
+        String workflowName = lineageMetadata.get(Arg.USER_WORKFLOW_NAME.getOptionName());
+        addInstanceToEntity(processWorkflowInstance, workflowName,
+                USER_WORKFLOW_TYPE, PROCESS_WORKFLOW_EDGE_LABEL);
     }
 
     private String getProcessInstance(String nominalTime, String entityName) {
         // todo
         return nominalTime;
-    }
-
-    private Vertex findOrCreateVertex(String name, String type) {
-        GraphQuery query = graph.query()
-                .has("name", name)
-                .has("type", type);
-        Iterator<Vertex> results = query.vertices().iterator();
-        return results.hasNext() ? results.next() : graph.addVertex(null);
     }
 
     private void addInstanceToEntity(Vertex instance, String entityName,
@@ -357,43 +395,38 @@ public class GraphBuilder implements ConfigurationChangeListener {
 
     private void addOutputFeedInstances(Map<String, String> lineageMetadata,
                                         Vertex processInstance) {
-        String[] outputFeedNames = lineageMetadata.get("feedNames").split(",");
-        String[] outputFeedInstancePaths = lineageMetadata.get("feedInstancePaths").split(",");
+        String[] outputFeedNames = lineageMetadata.get(Arg.FEED_NAMES.getOptionName()).split(",");
+        String[] outputFeedInstancePaths =
+                lineageMetadata.get(Arg.FEED_INSTANCE_PATHS.getOptionName()).split(",");
 
         addFeedInstances(outputFeedNames, outputFeedInstancePaths,
-                processInstance, "output", lineageMetadata);
+                processInstance, PROCESS_FEED_EDGE_LABEL, lineageMetadata);
     }
 
     private void addInputFeedInstances(Map<String, String> lineageMetadata,
                                        Vertex processInstance) {
-        String[] inputFeedNames = lineageMetadata.get("falconInputFeeds").split(",");
-        String[] inputFeedInstancePaths = lineageMetadata.get("falconInPaths").split(",");
+        String[] inputFeedNames = lineageMetadata.get(Arg.INPUT_FEED_NAMES.getOptionName()).split(",");
+        String[] inputFeedInstancePaths = lineageMetadata.get(Arg.INPUT_FEED_PATHS.getOptionName()).split(",");
 
         addFeedInstances(inputFeedNames, inputFeedInstancePaths,
-                processInstance, "input", lineageMetadata);
+                processInstance, FEED_PROCESS_EDGE_LABEL, lineageMetadata);
     }
 
-    private void addFeedInstances(String[] feedNames, String[] feedInstancePaths,
-                                  Vertex processInstance, String label,
-                                  Map<String, String> lineageMetadata) {
+    private void addFeedInstances(String[] feedNames, String[] feedInstancePaths, Vertex processInstance,
+                                  String edgeDirection, Map<String, String> lineageMetadata) {
         for (int index = 0; index < feedNames.length; index++) {
             String feedName = feedNames[index];
             String feedInstancePath = feedInstancePaths[index];
 
             String instance = getFeedInstance(feedName, feedInstancePath);
-            Vertex feedInstance = findOrCreateVertex(instance, "feed-instance");
-            feedInstance.setProperty("name", instance);
-            feedInstance.setProperty("type", "feed-instance");
-            feedInstance.setProperty("time", lineageMetadata.get("timeStamp"));
+            Vertex feedInstance = addVertex(instance, FEED_INSTANCE_TYPE,
+                    lineageMetadata.get(Arg.TIMESTAMP.getOptionName()));
 
-            Edge edge = label.equals("input")
-                    ? feedInstance.addEdge("input", processInstance)
-                    : processInstance.addEdge("output", feedInstance);
-            System.out.println("edge = " + edge);
+            addProcessFeedEdge(processInstance, feedInstance, edgeDirection);
 
-            addInstanceToEntity(feedInstance, feedName, "feed", "instance of");
-            addInstanceToEntity(feedInstance,
-                    lineageMetadata.get("cluster"), "cluster", "stored in");
+            addInstanceToEntity(feedInstance, feedName, FEED_ENTITY_TYPE, INSTANCE_ENTITY_EDGE_LABEL);
+            addInstanceToEntity(feedInstance, lineageMetadata.get(Arg.CLUSTER.getOptionName()),
+                    CLUSTER_ENTITY_TYPE, FEED_CLUSTER_EDGE_LABEL);
         }
     }
 
@@ -441,16 +474,34 @@ public class GraphBuilder implements ConfigurationChangeListener {
         return lineage;
     }
 
-    private void debug() {
+    protected void debug() {
+        System.out.println("--------------------------------------");
         System.out.println("Vertices of " + graph);
         for (Vertex vertex : graph.getVertices()) {
-            System.out.println(vertex);
-            System.out.println(vertex.getProperty("name") + ", " + vertex.getProperty("type"));
+            System.out.println(vertexString(vertex));
         }
 
+        System.out.println("--------------------------------------");
         System.out.println("Edges of " + graph);
         for (Edge edge : graph.getEdges()) {
-            System.out.println(edge);
+            System.out.println(edgeString(edge));
         }
+        System.out.println("--------------------------------------");
+    }
+
+    public static String vertexString(final Vertex vertex) {
+        return "v[" + vertex.getId() + "], [name: "
+                + vertex.getProperty("name")
+                + ", type: "
+                + vertex.getProperty("type")
+                + "]";
+    }
+
+    public static String edgeString(final Edge edge) {
+        return "e[" + edge.getLabel() + "], ["
+                + edge.getVertex(Direction.OUT).getProperty("name")
+                + " -> " + edge.getLabel() + " -> "
+                + edge.getVertex(Direction.IN).getProperty("name")
+                + "]";
     }
 }
