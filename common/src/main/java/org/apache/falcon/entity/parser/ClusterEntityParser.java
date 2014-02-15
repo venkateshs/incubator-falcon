@@ -22,6 +22,7 @@ import java.io.IOException;
 
 import javax.jms.ConnectionFactory;
 
+import org.apache.commons.lang.Validate;
 import org.apache.falcon.FalconException;
 import org.apache.falcon.catalog.CatalogServiceFactory;
 import org.apache.falcon.entity.ClusterHelper;
@@ -33,7 +34,6 @@ import org.apache.falcon.hadoop.HadoopClientFactory;
 import org.apache.falcon.entity.v0.cluster.Interfacetype;
 import org.apache.falcon.entity.v0.cluster.Interface;
 import org.apache.falcon.security.SecurityUtil;
-import org.apache.falcon.util.Preconditions;
 import org.apache.falcon.util.StartupProperties;
 import org.apache.falcon.workflow.WorkflowEngineFactory;
 import org.apache.hadoop.conf.Configuration;
@@ -107,7 +107,7 @@ public class ClusterEntityParser extends EntityParser<Cluster> {
 
             if (UserGroupInformation.isSecurityEnabled()) {
                 String nameNodePrincipal = ClusterHelper.getPropertyValue(cluster, SecurityUtil.NN_PRINCIPAL);
-                Preconditions.checkNotEmpty(nameNodePrincipal,
+                Validate.notEmpty(nameNodePrincipal,
                     "Cluster definition missing required namenode credential property: " + SecurityUtil.NN_PRINCIPAL);
 
                 conf.set(SecurityUtil.NN_PRINCIPAL, nameNodePrincipal);

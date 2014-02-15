@@ -101,7 +101,7 @@ public final class ConfigurationStore implements FalconService {
                 LOG.info("Creating configuration store directory: " + storePath);
                 fileSystem.mkdirs(storePath);
                 // set permissions so config store dir is owned by falcon alone
-                FsPermission permission = new FsPermission(FsAction.ALL, FsAction.EXECUTE, FsAction.NONE);
+                FsPermission permission = new FsPermission(FsAction.ALL, FsAction.NONE, FsAction.NONE);
                 fileSystem.setPermission(storePath, permission);
             }
 

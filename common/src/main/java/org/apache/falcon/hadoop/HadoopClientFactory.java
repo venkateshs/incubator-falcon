@@ -18,10 +18,10 @@
 
 package org.apache.falcon.hadoop;
 
+import org.apache.commons.lang.Validate;
 import org.apache.falcon.FalconException;
 import org.apache.falcon.security.CurrentUser;
 import org.apache.falcon.security.SecurityUtil;
-import org.apache.falcon.util.Preconditions;
 import org.apache.falcon.util.StartupProperties;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
@@ -61,7 +61,7 @@ public final class HadoopClientFactory {
      *          if the filesystem could not be created.
      */
     public FileSystem createFileSystem(final URI uri) throws FalconException {
-        Preconditions.notNull(uri, "uri");
+        Validate.notNull(uri, "uri cannot be null");
 
         try {
             Configuration conf = new Configuration();
@@ -77,7 +77,7 @@ public final class HadoopClientFactory {
 
     public FileSystem createFileSystem(final Configuration conf)
         throws FalconException {
-        Preconditions.notNull(conf, "conf");
+        Validate.notNull(conf, "configuration cannot be null");
 
         String nameNode = conf.get(FS_DEFAULT_NAME_KEY);
         try {
@@ -91,7 +91,7 @@ public final class HadoopClientFactory {
 
     public FileSystem createFileSystem(final URI uri, final Configuration conf)
         throws FalconException {
-        Preconditions.notNull(uri, "uri");
+        Validate.notNull(uri, "uri cannot be null");
 
         try {
             return createFileSystem(UserGroupInformation.getLoginUser(), uri, conf);
@@ -102,7 +102,7 @@ public final class HadoopClientFactory {
 
     public FileSystem createProxiedFileSystem(final Configuration conf)
         throws FalconException {
-        Preconditions.notNull(conf, "conf");
+        Validate.notNull(conf, "configuration cannot be null");
 
         String nameNode = conf.get(FS_DEFAULT_NAME_KEY);
         try {
@@ -124,7 +124,7 @@ public final class HadoopClientFactory {
      */
     public FileSystem createProxiedFileSystem(String proxyUser, final URI uri, final Configuration conf)
         throws FalconException {
-        Preconditions.notEmpty(proxyUser, "proxyUser");
+        Validate.notEmpty(proxyUser, "proxyUser cannot be null");
 
         try {
             UserGroupInformation proxyUgi = SecurityUtil.getProxyUser(proxyUser);
@@ -147,8 +147,8 @@ public final class HadoopClientFactory {
     @SuppressWarnings("ResultOfMethodCallIgnored")
     public FileSystem createFileSystem(UserGroupInformation ugi, final URI uri, final Configuration conf)
         throws FalconException {
-        Preconditions.notNull(ugi, "ugi");
-        Preconditions.notNull(conf, "conf");
+        Validate.notNull(ugi, "ugi cannot be null");
+        Validate.notNull(conf, "configuration cannot be null");
 
         String nameNode = uri.getAuthority();
         if (nameNode == null) {
