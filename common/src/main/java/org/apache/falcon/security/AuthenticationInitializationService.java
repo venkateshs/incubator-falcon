@@ -18,9 +18,9 @@
 
 package org.apache.falcon.security;
 
+import org.apache.commons.lang.Validate;
 import org.apache.falcon.FalconException;
 import org.apache.falcon.service.FalconService;
-import org.apache.falcon.util.Preconditions;
 import org.apache.falcon.util.StartupProperties;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.security.UserGroupInformation;
@@ -77,13 +77,13 @@ public class AuthenticationInitializationService implements FalconService {
         try {
             Properties configuration = StartupProperties.get();
             String principal = configuration.getProperty(KERBEROS_PRINCIPAL);
-            Preconditions.checkNotEmpty(principal,
+            Validate.notEmpty(principal,
                     "Missing required configuration property: " + KERBEROS_PRINCIPAL);
             principal = org.apache.hadoop.security.SecurityUtil.getServerPrincipal(
                     principal, SecurityUtil.getLocalHostName());
 
             String keytabFilePath = configuration.getProperty(KERBEROS_KEYTAB);
-            Preconditions.checkNotEmpty(keytabFilePath,
+            Validate.notEmpty(keytabFilePath,
                     "Missing required configuration property: " + KERBEROS_KEYTAB);
             checkIsReadable(keytabFilePath);
 
