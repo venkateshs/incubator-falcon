@@ -142,6 +142,12 @@ header, Remote-User is still honoured when the authentication type is configured
 *.falcon.http.authentication.type=org.apache.falcon.security.RemoteUserInHeaderBasedAuthenticationHandler
 </verbatim>
 
+---+++ Blacklisted super users for authentication
+
+The blacklist users used to have the following super users: hdfs, mapreduce, oozie, and falcon.
+The list is externalized from code into Startup.properties file and is empty now and needs to be
+configured specifically in the file.
+
 
 ---+++ Falcon Dashboard
 
