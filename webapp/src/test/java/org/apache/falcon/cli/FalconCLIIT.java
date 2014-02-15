@@ -504,7 +504,6 @@ public class FalconCLIIT {
                         + overlay.get("outputFeedName") + " -url "
                         + TestContext.BASE_URL).split("\\s+")));
 
-/*
         Assert.assertEquals(0,
                 new FalconCLI().run(("entity -schedule -type process -name "
                         + overlay.get("processName")+ " -url "
@@ -514,10 +513,11 @@ public class FalconCLIIT {
     public void testGetVersion() throws Exception {
         Assert.assertEquals(0,
                 new FalconCLI().run(("admin -version -url " + TestContext.BASE_URL).split("\\s")));
+    }
 
+    public void testGetThreadStackDump() throws Exception {
         Assert.assertEquals(0,
                 new FalconCLI().run(("admin -stack -url " + TestContext.BASE_URL).split("\\s")));
-*/
     }
 
     public void testInstanceGetLogs() throws Exception {

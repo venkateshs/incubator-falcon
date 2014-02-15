@@ -593,7 +593,7 @@ public class FalconClient {
         ClientResponse clientResponse = service.path(job.path)
                 .header("Cookie", AUTH_COOKIE_EQ + authenticationToken)
                 .accept(job.mimeType)
-                .type(MediaType.TEXT_PLAIN)
+                .type(job.mimeType)
                 .method(job.method, ClientResponse.class);
         return parseStringResult(clientResponse);
     }
