@@ -184,7 +184,7 @@ public class ClusterEntityParser extends EntityParser<Cluster> {
             String metaStorePrincipal = null;
             if (UserGroupInformation.isSecurityEnabled()) {
                 metaStorePrincipal = ClusterHelper.getPropertyValue(cluster, SecurityUtil.HIVE_METASTORE_PRINCIPAL);
-                Preconditions.checkNotEmpty(metaStorePrincipal,
+                Validate.notEmpty(metaStorePrincipal,
                         "Cluster definition missing required metastore credential property: "
                                 + SecurityUtil.HIVE_METASTORE_PRINCIPAL);
             }
