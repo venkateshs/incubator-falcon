@@ -170,6 +170,7 @@ public class FalconPostProcessing extends Configured implements Tool {
         addArg(args, cmd, Arg.FEED_INSTANCE_PATHS);
         addArg(args, cmd, Arg.LOG_FILE);
         addArg(args, cmd, Arg.WORKFLOW_USER);
+        addArg(args, cmd, Arg.LOG_DIR);
 
         MessageProducer.main(args.toArray(new String[0]));
     }
