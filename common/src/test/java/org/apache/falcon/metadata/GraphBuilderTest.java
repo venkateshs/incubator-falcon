@@ -35,15 +35,19 @@ import org.apache.falcon.entity.v0.process.Output;
 import org.apache.falcon.entity.v0.process.Outputs;
 import org.apache.falcon.entity.v0.process.Process;
 import org.apache.falcon.entity.v0.process.Workflow;
+import org.apache.falcon.metadata.LineageRecorder.Arg;
 import org.apache.falcon.security.CurrentUser;
 import org.testng.Assert;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -64,7 +68,7 @@ public class GraphBuilderTest {
     private ConfigurationStore store;
     private GraphBuilder graphBuilder;
 
-    @BeforeMethod
+    @BeforeClass
     public void setUp() throws Exception {
         CurrentUser.authenticate(FALCON_USER);
 
@@ -72,7 +76,7 @@ public class GraphBuilderTest {
         graphBuilder = new GraphBuilder();
     }
 
-    @AfterMethod
+    @AfterClass
     public void tearDown() throws Exception {
         cleanupGraphStore();
         cleanupConfigurationStore();
@@ -144,7 +148,7 @@ public class GraphBuilderTest {
 
         graphBuilder.debug();
 
-        verifyQuery();
+        verifyEntityGraph(GraphBuilder.FEED_ENTITY_TYPE, "Secure");
     }
 
     private static Cluster buildCluster(String name, String colo, String tags) {
@@ -321,84 +325,146 @@ public class GraphBuilderTest {
         }
     }
 
-    private void verifyQuery() {
+    private void verifyEntityGraph(String feedType, String classification) {
         System.out.println();
         System.out.println();
 
         // feeds owned by a user
+        List<String> feedNamesOwnedByUser = getFeedsOwnedByAUser(feedType);
+        Assert.assertEquals(feedNamesOwnedByUser,
+            Arrays.asList("impression-feed", "clicks-feed", "imp-click-join1", "imp-click-join2"));
+
+        System.out.println("--------------------------------------");
+        // feeds classified as secure
+        verifyFeedsClassifiedAsSecure(feedType);
+
+        System.out.println("--------------------------------------");
+        // feeds owned by a user and classified as secure
+        verifyFeedsOwnedByUserAndClassification(feedType, classification);
+    }
+
+    private List<String> getFeedsOwnedByAUser(String feedType) {
         GraphQuery userQuery = graphBuilder.getQuery()
                 .has(GraphBuilder.NAME_PROPERTY_KEY, FALCON_USER)
                 .has(GraphBuilder.TYPE_PROPERTY_KEY, GraphBuilder.USER_TYPE);
 
+        List<String> feedNames = new ArrayList<String>();
         for (Vertex userVertex : userQuery.vertices()) {
             for (Vertex feed : userVertex.getVertices(Direction.IN, GraphBuilder.USER_LABEL)) {
-                if (feed.getProperty(GraphBuilder.TYPE_PROPERTY_KEY).equals( GraphBuilder.FEED_ENTITY_TYPE)) {
+                if (feed.getProperty(GraphBuilder.TYPE_PROPERTY_KEY).equals(feedType)) {
                     System.out.println(FALCON_USER + " owns -> " + GraphBuilder.vertexString(feed));
+                    feedNames.add(feed.<String>getProperty(GraphBuilder.NAME_PROPERTY_KEY));
                 }
             }
         }
 
-        System.out.println("--------------------------------------");
-        // feeds classified as secure
+        return feedNames;
+    }
+
+    private void verifyFeedsClassifiedAsSecure(String feedType) {
         GraphQuery classQuery = graphBuilder.getQuery()
                 .has(GraphBuilder.NAME_PROPERTY_KEY, "Secure")
                 .has(GraphBuilder.TYPE_PROPERTY_KEY, GraphBuilder.TAGS_TYPE);
 
         for (Vertex feedVertex : classQuery.vertices()) {
             for (Vertex feed : feedVertex.getVertices(Direction.BOTH, "classified-as")) {
-                if (feed.getProperty(GraphBuilder.TYPE_PROPERTY_KEY).equals( GraphBuilder.FEED_ENTITY_TYPE)) {
+                if (feed.getProperty(GraphBuilder.TYPE_PROPERTY_KEY).equals(feedType)) {
                     System.out.println(" Secure classification -> " + GraphBuilder.vertexString(feed));
                 }
             }
         }
+    }
 
-        System.out.println("--------------------------------------");
-        // feeds owned by a user and classified as secure
+/*
+    private void verifyFeedsOwnedByUserAndIsSecure(String feedType) {
         Vertex userVertex = getEntityVertex(FALCON_USER, GraphBuilder.USER_TYPE);
         for (Vertex feed : userVertex.getVertices(Direction.IN, GraphBuilder.USER_LABEL)) {
-            for (Vertex classVertex : feed.getVertices(Direction.OUT, "classified-as")) {
-                if (classVertex.getProperty(GraphBuilder.NAME_PROPERTY_KEY).equals("Secure")) {
-                    System.out.println(" Secure feed owned by falcon-user -> "
-                            + GraphBuilder.vertexString(feed));
+            if (feed.getProperty(GraphBuilder.TYPE_PROPERTY_KEY).equals(feedType)) {
+                for (Vertex classVertex : feed.getVertices(Direction.OUT, "classified-as")) {
+                    if (classVertex.getProperty(GraphBuilder.NAME_PROPERTY_KEY).equals("Secure")) {
+                        System.out.println(" Secure feed owned by falcon-user -> "
+                                + GraphBuilder.vertexString(feed));
+                    }
+                }
+            }
+        }
+    }
+*/
+
+    private void verifyFeedsOwnedByUserAndClassification(String feedType, String classification) {
+        Vertex userVertex = getEntityVertex(FALCON_USER, GraphBuilder.USER_TYPE);
+        for (Vertex feed : userVertex.getVertices(Direction.IN, GraphBuilder.USER_LABEL)) {
+            if (feed.getProperty(GraphBuilder.TYPE_PROPERTY_KEY).equals(feedType)) {
+                for (Vertex classVertex : feed.getVertices(Direction.OUT, "classified-as")) {
+                    if (classVertex.getProperty(GraphBuilder.NAME_PROPERTY_KEY).equals(classification)) {
+                        System.out.println(classification + " feed owned by falcon-user -> "
+                                + GraphBuilder.vertexString(feed));
+                    }
                 }
             }
         }
     }
 
-    @Test (enabled = false)
+    @Test (dependsOnMethods = "testOnAdd")
     public void testAddLineageToGraph() throws Exception {
         Map<String, String> lineage = getTestData();
         graphBuilder.addLineageToGraph(lineage);
+
         graphBuilder.debug();
+
+        verifyLineageGraph(GraphBuilder.FEED_INSTANCE_TYPE);
+    }
+
+    private void verifyLineageGraph(String feedType) {
+        System.out.println();
+        System.out.println();
+
+        // feeds owned by a user
+        List<String> feedNamesOwnedByUser = getFeedsOwnedByAUser(feedType);
+        System.out.println("feedNamesOwnedByUser = " + feedNamesOwnedByUser);
+/*
+        Assert.assertEquals(feedNamesOwnedByUser,
+                Arrays.asList("impression-feed", "clicks-feed", "imp-click-join1", "imp-click-join2"));
+*/
+
+        System.out.println("--------------------------------------");
+        // feeds classified as secure
+        verifyFeedsClassifiedAsSecure(feedType);
+
+        System.out.println("--------------------------------------");
+        // feeds owned by a user and classified as secure
+        verifyFeedsOwnedByUserAndClassification(feedType, "Financial");
     }
 
     private static Map<String, String> getTestData() {
         Map<String, String> lineage = new HashMap<String, String>();
-        lineage.put("nominalTime", "2014-01-01-01-00");
-        lineage.put("timeStamp", "2014-01-01-01-00");
+        lineage.put(Arg.NOMINAL_TIME.getOptionName(), "2014-01-01-01-00");
+        lineage.put(Arg.TIMESTAMP.getOptionName(), "2014-01-01-01-00");
 
-        lineage.put("entityName", PROCESS_ENTITY_NAME);
-        lineage.put("entityType", "process");
-        lineage.put("cluster", CLUSTER_ENTITY_NAME);
-        lineage.put("operation", "GENERATE");
+        lineage.put(Arg.ENTITY_NAME.getOptionName(), PROCESS_ENTITY_NAME);
+        lineage.put(Arg.ENTITY_TYPE.getOptionName(), "process");
+        lineage.put(Arg.CLUSTER.getOptionName(), CLUSTER_ENTITY_NAME);
+        lineage.put(Arg.OPERATION.getOptionName(), "GENERATE");
 
-        lineage.put("workflowUser", "falcon-user");
-        lineage.put("workflowEngineUrl", "http://localhost:11000/oozie");
-        lineage.put("subflowId", "userflow@wf-id");
-        lineage.put("userWorkflowEngine", "oozie");
-        lineage.put("workflowId", "workflow-01-00");
-        lineage.put("runId", "1");
-        lineage.put("status", "SUCCEEDED");
+        lineage.put(Arg.WORKFLOW_USER.getOptionName(), FALCON_USER);
+        lineage.put(Arg.WF_ENGINE_URL.getOptionName(), "http://localhost:11000/oozie");
+        lineage.put(Arg.USER_SUBFLOW_ID.getOptionName(), "userflow@wf-id");
+        lineage.put(Arg.USER_WORKFLOW_NAME.getOptionName(), WORKFLOW_NAME);
+        lineage.put(Arg.USER_WORKFLOW_VERSION.getOptionName(), WORKFLOW_VERSION);
+        lineage.put(Arg.USER_WORKFLOW_ENGINE.getOptionName(), EngineType.PIG.name());
+        lineage.put(Arg.WORKFLOW_ID.getOptionName(), "workflow-01-00");
+        lineage.put(Arg.RUN_ID.getOptionName(), "1");
+        lineage.put(Arg.STATUS.getOptionName(), "SUCCEEDED");
 
-        lineage.put("falconInputFeeds",  INPUT_FEED_NAMES);
-        lineage.put("falconInPaths",
-                "/in-click-logs/10/05/05/00/20,/in-raw-logs/10/05/05/00/20");
+        lineage.put(Arg.INPUT_FEED_NAMES.getOptionName(), INPUT_FEED_NAMES);
+        lineage.put(Arg.INPUT_FEED_PATHS.getOptionName(),
+                "/impression/10/05/05/00/20,/clicks/10/05/05/00/20");
 
-        lineage.put("feedNames",  OUTPUT_FEED_NAMES);
-        lineage.put("feedInstancePaths",
-                "/out-click-logs/10/05/05/00/20,/out-raw-logs/10/05/05/00/20");
+        lineage.put(Arg.FEED_NAMES.getOptionName(), OUTPUT_FEED_NAMES);
+        lineage.put(Arg.FEED_INSTANCE_PATHS.getOptionName(),
+                "/imp-click-join1/10/05/05/00/20,/imp-click-join2/10/05/05/00/20");
 
-        lineage.put("logDir", "target/log");
+        lineage.put(Arg.LOG_DIR.getOptionName(), "target/log");
         return lineage;
     }
 }

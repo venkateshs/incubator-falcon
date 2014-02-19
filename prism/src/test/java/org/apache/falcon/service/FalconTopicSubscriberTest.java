@@ -99,6 +99,7 @@ public class FalconTopicSubscriberTest {
         message.getKeyValueMap().put(ARG.topicName, TOPIC_NAME);
         message.getKeyValueMap().put(ARG.status, "SUCCEEDED");
         message.getKeyValueMap().put(ARG.workflowUser, "falcon");
+        message.getKeyValueMap().put(ARG.logDir, "target/logs");
         return message;
     }
 

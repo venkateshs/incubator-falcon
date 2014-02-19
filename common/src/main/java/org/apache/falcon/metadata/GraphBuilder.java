@@ -25,8 +25,11 @@ import com.tinkerpop.blueprints.GraphQuery;
 import com.tinkerpop.blueprints.KeyIndexableGraph;
 import com.tinkerpop.blueprints.Vertex;
 import org.apache.falcon.FalconException;
+import org.apache.falcon.entity.FeedHelper;
+import org.apache.falcon.entity.Storage;
 import org.apache.falcon.entity.store.ConfigurationStore;
 import org.apache.falcon.entity.v0.Entity;
+import org.apache.falcon.entity.v0.EntityType;
 import org.apache.falcon.entity.v0.cluster.Cluster;
 import org.apache.falcon.entity.v0.feed.Feed;
 import org.apache.falcon.entity.v0.process.Input;
@@ -70,9 +73,9 @@ public class GraphBuilder implements ConfigurationChangeListener {
     public static final String USER_WORKFLOW_TYPE = "user-workflow";
 
     // instance vertex types
-    private static final String FEED_INSTANCE_TYPE = "feed-instance";
-    private static final String PROCESS_INSTANCE_TYPE = "process-instance";
-    private static final String WORKFLOW_INSTANCE_TYPE = "workflow-instance";
+    public static final String FEED_INSTANCE_TYPE = "feed-instance";
+    public static final String PROCESS_INSTANCE_TYPE = "process-instance";
+    public static final String WORKFLOW_INSTANCE_TYPE = "workflow-instance";
 
     // edge labels
     public static final String USER_LABEL = "owned by";
@@ -87,7 +90,7 @@ public class GraphBuilder implements ConfigurationChangeListener {
     public static final String PROCESS_WORKFLOW_EDGE_LABEL = "executes";
 
     // instance edge labels
-    private static final String INSTANCE_ENTITY_EDGE_LABEL = "instance of";
+    public static final String INSTANCE_ENTITY_EDGE_LABEL = "instance of";
     // private static final String PROCESS_INSTANCE_CLUSTER_LABEL = "runs on";
 
     private final KeyIndexableGraph graph;
@@ -341,13 +344,13 @@ public class GraphBuilder implements ConfigurationChangeListener {
         // todo hmmm, need to address this
     }
 
-    public void addLineageToGraph(Map<String, String> lineageMetadata) {
+    public void addLineageToGraph(Map<String, String> lineageMetadata) throws FalconException {
         Vertex processInstance = addProcessInstance(lineageMetadata);
         addOutputFeedInstances(lineageMetadata, processInstance);
         addInputFeedInstances(lineageMetadata, processInstance);
     }
 
-    private Vertex addProcessInstance(Map<String, String> lineageMetadata) {
+    private Vertex addProcessInstance(Map<String, String> lineageMetadata) throws FalconException {
         String entityName = lineageMetadata.get(Arg.ENTITY_NAME.getOptionName());
         String processInstanceName = getProcessInstance(
                 lineageMetadata.get(Arg.NOMINAL_TIME.getOptionName()), entityName);
@@ -355,30 +358,41 @@ public class GraphBuilder implements ConfigurationChangeListener {
         String timestamp = lineageMetadata.get(Arg.TIMESTAMP.getOptionName());
         Vertex processInstance = addVertex(processInstanceName, PROCESS_INSTANCE_TYPE, timestamp);
 
-        addWorkflowInstance(processInstance, lineageMetadata);
+        Vertex workflowInstance = addWorkflowInstance(lineageMetadata);
+        processInstance.addEdge(PROCESS_WORKFLOW_EDGE_LABEL, workflowInstance);
+        addInstanceToEntity(workflowInstance, lineageMetadata.get(Arg.CLUSTER.getOptionName()),
+                CLUSTER_ENTITY_TYPE, PROCESS_CLUSTER_EDGE_LABEL);
 
         addInstanceToEntity(processInstance, entityName,
                 PROCESS_ENTITY_TYPE, INSTANCE_ENTITY_EDGE_LABEL);
         addInstanceToEntity(processInstance, lineageMetadata.get(Arg.CLUSTER.getOptionName()),
                 CLUSTER_ENTITY_TYPE, PROCESS_CLUSTER_EDGE_LABEL);
+        addInstanceToEntity(processInstance,
+                lineageMetadata.get(Arg.WORKFLOW_USER.getOptionName()), USER_TYPE, USER_LABEL);
 
+        Process process = ConfigurationStore.get().get(EntityType.PROCESS, entityName);
+        addDataClassification(process.getTags(), processInstance);
         return processInstance;
     }
 
-    private void addWorkflowInstance(Vertex processInstance, Map<String, String> lineageMetadata) {
+    private Vertex addWorkflowInstance(Map<String, String> lineageMetadata) {
         String workflowId = lineageMetadata.get(Arg.WORKFLOW_ID.getOptionName());
-        Vertex processWorkflowInstance = addVertex(workflowId,
+        Vertex workflowInstance = addVertex(workflowId,
                 WORKFLOW_INSTANCE_TYPE, lineageMetadata.get(Arg.TIMESTAMP.getOptionName()));
-        processWorkflowInstance.setProperty(VERSION_PROPERTY_KEY, "1.0");
-
-        processInstance.addEdge(PROCESS_WORKFLOW_EDGE_LABEL, processWorkflowInstance);
+        workflowInstance.setProperty(VERSION_PROPERTY_KEY, "1.0");
 
         String workflowName = lineageMetadata.get(Arg.USER_WORKFLOW_NAME.getOptionName());
-        addInstanceToEntity(processWorkflowInstance, workflowName,
+        addInstanceToEntity(workflowInstance, workflowName,
                 USER_WORKFLOW_TYPE, PROCESS_WORKFLOW_EDGE_LABEL);
+        addInstanceToEntity(workflowInstance,
+                lineageMetadata.get(Arg.WORKFLOW_USER.getOptionName()), USER_TYPE, USER_LABEL);
+
+        return workflowInstance;
     }
 
-    private String getProcessInstance(String nominalTime, String entityName) {
+    private String getProcessInstance(String nominalTime, String entityName) throws FalconException {
+        Process process = ConfigurationStore.get().get(EntityType.PROCESS, entityName);
+        // process.getFrequency()
         // todo
         return nominalTime;
     }
@@ -394,7 +408,7 @@ public class GraphBuilder implements ConfigurationChangeListener {
     }
 
     private void addOutputFeedInstances(Map<String, String> lineageMetadata,
-                                        Vertex processInstance) {
+                                        Vertex processInstance) throws FalconException {
         String[] outputFeedNames = lineageMetadata.get(Arg.FEED_NAMES.getOptionName()).split(",");
         String[] outputFeedInstancePaths =
                 lineageMetadata.get(Arg.FEED_INSTANCE_PATHS.getOptionName()).split(",");
@@ -404,7 +418,7 @@ public class GraphBuilder implements ConfigurationChangeListener {
     }
 
     private void addInputFeedInstances(Map<String, String> lineageMetadata,
-                                       Vertex processInstance) {
+                                       Vertex processInstance) throws FalconException {
         String[] inputFeedNames = lineageMetadata.get(Arg.INPUT_FEED_NAMES.getOptionName()).split(",");
         String[] inputFeedInstancePaths = lineageMetadata.get(Arg.INPUT_FEED_PATHS.getOptionName()).split(",");
 
@@ -412,27 +426,49 @@ public class GraphBuilder implements ConfigurationChangeListener {
                 processInstance, FEED_PROCESS_EDGE_LABEL, lineageMetadata);
     }
 
-    private void addFeedInstances(String[] feedNames, String[] feedInstancePaths, Vertex processInstance,
-                                  String edgeDirection, Map<String, String> lineageMetadata) {
+    private void addFeedInstances(String[] feedNames, String[] feedInstancePaths,
+                                  Vertex processInstance, String edgeDirection,
+                                  Map<String, String> lineageMetadata) throws FalconException {
+        String clusterName = lineageMetadata.get(Arg.CLUSTER.getOptionName());
+
         for (int index = 0; index < feedNames.length; index++) {
             String feedName = feedNames[index];
             String feedInstancePath = feedInstancePaths[index];
 
-            String instance = getFeedInstance(feedName, feedInstancePath);
+            String instance = getFeedInstance(feedName, clusterName, feedInstancePath);
             Vertex feedInstance = addVertex(instance, FEED_INSTANCE_TYPE,
                     lineageMetadata.get(Arg.TIMESTAMP.getOptionName()));
 
             addProcessFeedEdge(processInstance, feedInstance, edgeDirection);
 
-            addInstanceToEntity(feedInstance, feedName, FEED_ENTITY_TYPE, INSTANCE_ENTITY_EDGE_LABEL);
+            addInstanceToEntity(feedInstance, feedName, FEED_ENTITY_TYPE,
+                    INSTANCE_ENTITY_EDGE_LABEL);
             addInstanceToEntity(feedInstance, lineageMetadata.get(Arg.CLUSTER.getOptionName()),
                     CLUSTER_ENTITY_TYPE, FEED_CLUSTER_EDGE_LABEL);
+            addInstanceToEntity(feedInstance,
+                    lineageMetadata.get(Arg.WORKFLOW_USER.getOptionName()), USER_TYPE, USER_LABEL);
+
+            Feed feed = ConfigurationStore.get().get(EntityType.FEED, feedName);
+            addDataClassification(feed.getTags(), feedInstance);
+            addGroups(feed.getGroups(), feedInstance);
         }
     }
 
-    private String getFeedInstance(String feedName, String feedInstancePath) {
-        // todo - this is yuck
-        return feedInstancePath;
+    private String getFeedInstance(String feedName, String clusterName,
+                                   String feedInstancePath) throws FalconException {
+        try {
+            Feed feed = ConfigurationStore.get().get(EntityType.FEED, feedName);
+            Cluster cluster = ConfigurationStore.get().get(EntityType.CLUSTER, clusterName);
+
+            Storage.TYPE storageType = FeedHelper.getStorageType(feed, cluster);
+            Storage storage = FeedHelper.createStorage(storageType.name(), feedInstancePath);
+            // storage.getDateInstance();
+
+            // todo - this is yuck
+            return feedInstancePath;
+        } catch (URISyntaxException e) {
+            throw new FalconException(e);
+        }
     }
 
     public static void main(String[] args) throws Exception {

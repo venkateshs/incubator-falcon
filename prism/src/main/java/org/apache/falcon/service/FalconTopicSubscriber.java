@@ -22,6 +22,7 @@ import org.apache.falcon.aspect.GenericAlert;
 import org.apache.falcon.entity.EntityUtil;
 import org.apache.falcon.entity.v0.SchemaHelper;
 import org.apache.falcon.messaging.EntityInstanceMessage.ARG;
+import org.apache.falcon.metadata.MetadataMappingService;
 import org.apache.falcon.rerun.event.RerunEvent.RerunType;
 import org.apache.falcon.rerun.handler.AbstractRerunHandler;
 import org.apache.falcon.rerun.handler.RerunHandlerFactory;
@@ -34,6 +35,9 @@ import org.apache.log4j.Logger;
 import javax.jms.*;
 import java.lang.reflect.InvocationTargetException;
 import java.util.Date;
+import java.util.Enumeration;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * Subscribes to the falcon topic for handling retries and alerts.
@@ -119,6 +123,7 @@ public class FalconTopicSubscriber implements MessageListener, ExceptionListener
                         SchemaHelper.formatDateUTC(startTime), duration);
 
                 notifySLAService(cluster, entityName, entityType, nominalTime, duration);
+                notifyMetadataMappingService(mapMessage);
             }
         } catch (JMSException e) {
             LOG.info("Error in onMessage for subscriber of topic: " + this.toString(), e);
@@ -141,6 +146,30 @@ public class FalconTopicSubscriber implements MessageListener, ExceptionListener
 
     private SLAMonitoringService getSLAMonitoringService() {
         return Services.get().getService(SLAMonitoringService.SERVICE_NAME);
+    }
+
+    private void notifyMetadataMappingService(MapMessage message) throws JMSException {
+        MetadataMappingService service = Services.get().getService(MetadataMappingService.SERVICE_NAME);
+        service.mapLineage(toMap(message));
+    }
+
+    private Map<String, String> toMap(MapMessage message) throws JMSException {
+        Map<String, String> metadata = new HashMap<String, String>();
+        Enumeration propertyNames = message.getPropertyNames();
+        while (propertyNames.hasMoreElements()) {
+            String propertyName = (String) propertyNames.nextElement();
+            metadata.put(propertyName, message.getString(propertyName));
+        }
+
+/*
+        Enumeration mapNames = message.getMapNames();
+        while (mapNames.hasMoreElements()) {
+            String mapname = (java.lang.String) mapNames.nextElement();
+            message.getString(mapname);
+        }
+*/
+
+        return metadata;
     }
 
     private void debug(MapMessage mapMessage) throws JMSException {
