@@ -187,13 +187,17 @@ public class LineageRecorder  extends Configured implements Tool {
     }
 
     public static Map<String, String> parseLineageMetadata(String logDir, String nominalTime)
-        throws FalconException, IOException {
+        throws FalconException {
 
-        String file = getFilePath(logDir, nominalTime);
-        Path lineageDataPath = new Path(file); // file has 777 permissions
-        FileSystem fs = HadoopClientFactory.get().createFileSystem(lineageDataPath.toUri());
+        try {
+            String file = getFilePath(logDir, nominalTime);
+            Path lineageDataPath = new Path(file); // file has 777 permissions
+            FileSystem fs = HadoopClientFactory.get().createFileSystem(lineageDataPath.toUri());
 
-        BufferedReader in = new BufferedReader(new InputStreamReader(fs.open(lineageDataPath)));
-        return (Map<String, String>) JSONValue.parse(in);
+            BufferedReader in = new BufferedReader(new InputStreamReader(fs.open(lineageDataPath)));
+            return (Map<String, String>) JSONValue.parse(in);
+        } catch (IOException e) {
+            throw new FalconException("Error opening lineage file", e);
+        }
     }
 }

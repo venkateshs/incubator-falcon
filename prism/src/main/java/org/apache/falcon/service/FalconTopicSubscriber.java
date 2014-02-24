@@ -148,7 +148,7 @@ public class FalconTopicSubscriber implements MessageListener, ExceptionListener
         return Services.get().getService(SLAMonitoringService.SERVICE_NAME);
     }
 
-    private void notifyMetadataMappingService(MapMessage message) throws JMSException {
+    private void notifyMetadataMappingService(MapMessage message) throws JMSException, FalconException {
         MetadataMappingService service = Services.get().getService(MetadataMappingService.SERVICE_NAME);
         service.mapLineage(toMap(message));
     }

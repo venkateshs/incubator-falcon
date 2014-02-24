@@ -35,7 +35,6 @@ import org.apache.falcon.service.FalconService;
 import org.apache.log4j.Logger;
 
 import java.io.File;
-import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Map;
@@ -72,6 +71,10 @@ public class MetadataMappingService implements FalconService, ConfigurationChang
         } catch (URISyntaxException e) {
             throw new FalconException("Error opening graph configuration", e);
         }
+    }
+
+    protected KeyIndexableGraph getGraph() {
+        return graph;
     }
 
     private KeyIndexableGraph initializeGraphDB() throws URISyntaxException {
@@ -120,7 +123,7 @@ public class MetadataMappingService implements FalconService, ConfigurationChang
         // todo need to address this
     }
 
-    public void mapLineage(Map<String, String> message) throws FalconException, IOException {
+    public void mapLineage(Map<String, String> message) throws FalconException {
         String nominalTime = message.get(Arg.NOMINAL_TIME.getOptionName());
         String logDir = message.get(Arg.LOG_DIR.getOptionName());
 
