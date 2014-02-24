@@ -21,17 +21,22 @@ package org.apache.falcon.metadata;
 import com.tinkerpop.blueprints.KeyIndexableGraph;
 import com.tinkerpop.blueprints.Vertex;
 import org.apache.falcon.FalconException;
+import org.apache.falcon.entity.CatalogStorage;
 import org.apache.falcon.entity.FeedHelper;
 import org.apache.falcon.entity.Storage;
+import org.apache.falcon.entity.common.FeedDataPath;
 import org.apache.falcon.entity.store.ConfigurationStore;
 import org.apache.falcon.entity.v0.EntityType;
 import org.apache.falcon.entity.v0.feed.Feed;
-import org.apache.falcon.entity.v0.process.Process;
 import org.apache.falcon.entity.v0.cluster.Cluster;
+import org.apache.falcon.entity.v0.feed.LocationType;
 
 import java.net.URISyntaxException;
 import java.util.Map;
 
+/**
+ * Instance Metadata relationship mapping helper.
+ */
 public class InstanceRelationshipGraphBuilder extends RelationshipGraphBuilder {
 
     // instance vertex types
@@ -42,7 +47,6 @@ public class InstanceRelationshipGraphBuilder extends RelationshipGraphBuilder {
     // instance edge labels
     public static final String INSTANCE_ENTITY_EDGE_LABEL = "instance of";
 
-
     public InstanceRelationshipGraphBuilder(KeyIndexableGraph graph) {
         super(graph);
     }
@@ -50,7 +54,7 @@ public class InstanceRelationshipGraphBuilder extends RelationshipGraphBuilder {
     public Vertex addProcessInstance(Map<String, String> lineageMetadata) throws FalconException {
         String entityName = lineageMetadata.get(LineageRecorder.Arg.ENTITY_NAME.getOptionName());
         String processInstanceName = getProcessInstance(
-                lineageMetadata.get(LineageRecorder.Arg.NOMINAL_TIME.getOptionName()), entityName);
+                lineageMetadata.get(LineageRecorder.Arg.NOMINAL_TIME.getOptionName()));
 
         String timestamp = lineageMetadata.get(LineageRecorder.Arg.TIMESTAMP.getOptionName());
         Vertex processInstance = addVertex(processInstanceName, PROCESS_INSTANCE_TYPE, timestamp);
@@ -88,10 +92,7 @@ public class InstanceRelationshipGraphBuilder extends RelationshipGraphBuilder {
         return workflowInstance;
     }
 
-    public String getProcessInstance(String nominalTime, String entityName) throws FalconException {
-        Process process = ConfigurationStore.get().get(EntityType.PROCESS, entityName);
-        // process.getFrequency()
-        // todo
+    public String getProcessInstance(String nominalTime) throws FalconException {
         return nominalTime;
     }
 
@@ -153,19 +154,39 @@ public class InstanceRelationshipGraphBuilder extends RelationshipGraphBuilder {
     }
 
     public String getFeedInstance(String feedName, String clusterName,
-                                   String feedInstancePath) throws FalconException {
+                                  String feedInstancePath) throws FalconException {
         try {
             Feed feed = ConfigurationStore.get().get(EntityType.FEED, feedName);
             Cluster cluster = ConfigurationStore.get().get(EntityType.CLUSTER, clusterName);
 
             Storage.TYPE storageType = FeedHelper.getStorageType(feed, cluster);
-            Storage storage = FeedHelper.createStorage(storageType.name(), feedInstancePath);
-            // storage.getDateInstance();
+            return storageType == Storage.TYPE.TABLE
+                    ? getTableFeedInstance(feedInstancePath, storageType)
+                    : getFileSystemFeedInstance(feedInstancePath, feed, cluster);
 
-            // todo - this is yuck
-            return feedInstancePath;
         } catch (URISyntaxException e) {
             throw new FalconException(e);
         }
+    }
+
+    private String getTableFeedInstance(String feedInstancePath,
+                                        Storage.TYPE storageType) throws URISyntaxException {
+        CatalogStorage instanceStorage = (CatalogStorage) FeedHelper.createStorage(
+                storageType.name(), feedInstancePath);
+        return instanceStorage.toPartitionAsPath();
+    }
+
+    private String getFileSystemFeedInstance(String feedInstancePath, Feed feed,
+                                             Cluster cluster) throws FalconException {
+        Storage rawStorage = FeedHelper.createStorage(cluster, feed);
+        String feedPathTemplate = rawStorage.getUriTemplate(LocationType.DATA);
+        String instance = feedInstancePath;
+        String[] elements = FeedDataPath.PATTERN.split(feedPathTemplate);
+        for (String element : elements) {
+            System.out.println("element = " + element);
+            instance = instance.replaceFirst(element, "");
+            System.out.println("instance = " + instance);
+        }
+        return instance;
     }
 }

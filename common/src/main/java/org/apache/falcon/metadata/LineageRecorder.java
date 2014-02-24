@@ -35,7 +35,9 @@ import org.apache.hadoop.util.ToolRunner;
 import org.apache.log4j.Logger;
 import org.json.simple.JSONValue;
 
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.util.HashMap;
 import java.util.Map;
@@ -182,5 +184,16 @@ public class LineageRecorder  extends Configured implements Tool {
                 }
             }
         }
+    }
+
+    public static Map<String, String> parseLineageMetadata(String logDir, String nominalTime)
+        throws FalconException, IOException {
+
+        String file = getFilePath(logDir, nominalTime);
+        Path lineageDataPath = new Path(file); // file has 777 permissions
+        FileSystem fs = HadoopClientFactory.get().createFileSystem(lineageDataPath.toUri());
+
+        BufferedReader in = new BufferedReader(new InputStreamReader(fs.open(lineageDataPath)));
+        return (Map<String, String>) JSONValue.parse(in);
     }
 }

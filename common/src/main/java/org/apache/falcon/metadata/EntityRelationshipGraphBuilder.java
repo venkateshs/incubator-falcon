@@ -24,6 +24,9 @@ import org.apache.falcon.entity.v0.cluster.Cluster;
 import org.apache.falcon.entity.v0.feed.Feed;
 import org.apache.falcon.entity.v0.process.*;
 
+/**
+ * Entity Metadata relationship mapping helper.
+ */
 public class EntityRelationshipGraphBuilder extends RelationshipGraphBuilder {
 
     // entity vertex types

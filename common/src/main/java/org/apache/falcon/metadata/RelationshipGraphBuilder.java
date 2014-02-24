@@ -25,6 +25,9 @@ import org.apache.falcon.security.CurrentUser;
 
 import java.util.Iterator;
 
+/**
+ * Base class for Metadata relationship mapping helper.
+ */
 public abstract class RelationshipGraphBuilder {
 
     private final KeyIndexableGraph graph;
