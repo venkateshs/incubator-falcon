@@ -30,12 +30,6 @@ import java.util.Iterator;
  */
 public abstract class RelationshipGraphBuilder {
 
-    private final KeyIndexableGraph graph;
-
-    protected RelationshipGraphBuilder(KeyIndexableGraph graph) {
-        this.graph = graph;
-    }
-
     // vertex property keys
     public static final String NAME_PROPERTY_KEY = "name";
     public static final String TYPE_PROPERTY_KEY = "type";
@@ -59,6 +53,19 @@ public abstract class RelationshipGraphBuilder {
     public static final String FEED_PROCESS_EDGE_LABEL = "input";
     public static final String PROCESS_FEED_EDGE_LABEL = "output";
     public static final String PROCESS_WORKFLOW_EDGE_LABEL = "executes";
+
+    /**
+     * A blueprints graph.
+     */
+    private final KeyIndexableGraph graph;
+
+    protected RelationshipGraphBuilder(KeyIndexableGraph graph) {
+        this.graph = graph;
+    }
+
+    protected KeyIndexableGraph getGraph() {
+        return graph;
+    }
 
 
     public void addUser(Vertex fromVertex) {
@@ -94,7 +101,7 @@ public abstract class RelationshipGraphBuilder {
         }
     }
 
-    public void addProcessFeedEdge(Vertex processVertex, Vertex feedVertex, String edgeDirection) {
+    public void addProcessFeedEdge(Vertex processVertex, Vertex feedVertex, String edgeLabel) {
         /*
         Edge edge = label.equals(FEED_PROCESS_EDGE_LABEL)
                 ? feedInstance.addEdge(FEED_PROCESS_EDGE_LABEL, processInstance)
@@ -103,16 +110,16 @@ public abstract class RelationshipGraphBuilder {
         */
 
         /*
-        Edge edge = (edgeDirection.equals(FEED_PROCESS_EDGE_LABEL))
-                ? feedVertex.addEdge(edgeDirection, processVertex)
-                : processVertex.addEdge(edgeDirection, feedVertex);
+        Edge edge = (edgeLabel.equals(FEED_PROCESS_EDGE_LABEL))
+                ? feedVertex.addEdge(edgeLabel, processVertex)
+                : processVertex.addEdge(edgeLabel, feedVertex);
         System.out.println("edge = " + edge);
         */
 
-        if (edgeDirection.equals(FEED_PROCESS_EDGE_LABEL)) {
-            feedVertex.addEdge(edgeDirection, processVertex);
+        if (edgeLabel.equals(FEED_PROCESS_EDGE_LABEL)) {
+            feedVertex.addEdge(edgeLabel, processVertex);
         } else {
-            processVertex.addEdge(edgeDirection, feedVertex);
+            processVertex.addEdge(edgeLabel, feedVertex);
         }
     }
 

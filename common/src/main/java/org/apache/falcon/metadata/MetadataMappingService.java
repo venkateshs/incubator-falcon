@@ -87,6 +87,7 @@ public class MetadataMappingService implements FalconService, ConfigurationChang
         graph.createKeyIndex(RelationshipGraphBuilder.NAME_PROPERTY_KEY, Vertex.class);
         graph.createKeyIndex(RelationshipGraphBuilder.TYPE_PROPERTY_KEY, Vertex.class);
         graph.createKeyIndex(RelationshipGraphBuilder.VERSION_PROPERTY_KEY, Vertex.class);
+        graph.createKeyIndex(RelationshipGraphBuilder.TIMESTAMP_PROPERTY_KEY, Vertex.class);
     }
 
     @Override
@@ -115,12 +116,27 @@ public class MetadataMappingService implements FalconService, ConfigurationChang
 
     @Override
     public void onRemove(Entity entity) throws FalconException {
-        // do nothing, we'd leave the deleted entities as is for historical purposes
+        // do nothing, we'd leave the deleted entities as-is for historical purposes
+        // should we mark 'em as deleted?
     }
 
     @Override
     public void onChange(Entity oldEntity, Entity newEntity) throws FalconException {
-        // todo need to address this
+        switch (newEntity.getEntityType()) {
+            case CLUSTER:
+                // a cluster cannot be updated
+                break;
+
+            case FEED:
+                entityGraphBuilder.updateFeedEntity((Feed) oldEntity, (Feed) newEntity);
+                break;
+
+            case PROCESS:
+                entityGraphBuilder.updateProcessEntity((Process) oldEntity, (Process) newEntity);
+                break;
+
+            default:
+        }
     }
 
     public void mapLineage(Map<String, String> message) throws FalconException {
